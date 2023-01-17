@@ -17,16 +17,16 @@ const Game = () => {
     if (!players.length) {
       dispatch({ type: "addPlayer", payload: { id: "a", nickname: "player 1" } });
     }
-  }, []);
+  }, [players.length]);
 
   useEffect(() => {
     console.log(gameState.messages.at(-1)?.content);
-  }, [gameState.messages.length]);
+  }, [gameState.messages, gameState.messages.length]);
 
   const currentPlayer = players[0];
   if (!currentPlayer) return <></>;
 
-  const { id, nickname, hand = [], properties = {}, money = [], rentDue } = currentPlayer;
+  const { id, hand = [], properties = {} } = currentPlayer;
 
   return (
     <Box padding={4}>

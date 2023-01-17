@@ -3,7 +3,7 @@ import Game from "./Game";
 import StartScreen from "./StartScreen";
 
 function App() {
-  const [hasJoinedRoom, setHasJoinedRoom] = useState(true);
+  const [hasJoinedRoom] = useState(true);
 
   return hasJoinedRoom ? <Game /> : <StartScreen />;
 }

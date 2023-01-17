@@ -134,12 +134,12 @@ const reducer: Reducer<GameState, Payloads> = (state, action) => {
           newMoney = [...money, card];
           break;
         }
-        // @ts-ignore
         case "action": {
           if (asMoney) {
             newMoney = [...money, card];
             break;
           }
+          break;
         }
         case "rent": {
           if (asMoney) {
