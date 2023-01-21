@@ -6,6 +6,7 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background-color: #282c34;
+  --size: 75px;
 }
 
 code {
@@ -18,4 +19,21 @@ code {
   justify-content: center;
   align-items: center;
   text-align: center;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  height: 0.25rem;
+  width: 0.25rem;
+  background-color: transparent
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: #ccc;
+  border-radius: 8px
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: #aaa
 }

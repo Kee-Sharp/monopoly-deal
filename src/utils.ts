@@ -1,4 +1,4 @@
-export const takeFirstN = <T>(arr: T[], n: number): [T[], T[]] => {
+export const takeFirstN = <T>(arr: T[], n: number): [firstN: T[], remaining: T[]] => {
   return [arr.slice(0, n), arr.slice(n)];
 };
 
@@ -12,7 +12,10 @@ export const setValueInArray = <T, V extends T = T>(
   return newArray;
 };
 
-export const removeFromArray = <T>(arr: T[], index: number): [T[], T] => {
+export const removeFromArray = <T>(
+  arr: T[],
+  index: number
+): [newArray: T[], oldValue: T] => {
   const newArray: T[] = [];
   for (let i = 0; i < arr.length; i++) {
     if (i !== index) newArray.push(arr[i]);

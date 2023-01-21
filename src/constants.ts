@@ -36,3 +36,17 @@ export const stagesMap = {
   brown: [1, 3],
   light_green: [1, 2],
 };
+
+// prettier-ignore
+export const defaultCardConfig = [
+  // properties 0-9
+  2,3,3,3,3,3,4,3,2,2,
+  // wildcards 10-17
+  2,1,1,1,1,1,1,1,
+  // rent 18-23
+  3,2,2,2,2,2,
+  // action 24-33
+  2,3,3,4,3,3,3,3,2,10,
+  // money 34-39
+  1,2,3,3,5,6
+];

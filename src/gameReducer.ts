@@ -1,6 +1,7 @@
 import _ from "lodash";
 import { Reducer } from "react";
 import cards from "./cards.json";
+import { defaultCardConfig } from "./constants";
 import { removeFromArray, setValueInArray, takeFirstN } from "./utils";
 
 // prettier-ignore
@@ -29,20 +30,21 @@ export interface Player {
   hand: TCard[];
   properties: { [color in SolidColor]?: Extract<TCard, { type: "property" }>[] };
   money: TCard[];
+  movesLeft: number;
   rentDue?: { playerId: string; amount: number };
 }
-export interface GameState {
+export type GameState = {
   players: Player[];
   deck: TCard[];
-  currentTurn?: string;
   messages: { id: string; content: string }[];
-}
+} & ({ gameStarted: false } | { gameStarted: true; currentPlayerId: string });
 
 export const init = (): GameState => {
   return {
     players: [],
-    deck: _.shuffle(cards) as TCard[],
+    deck: [],
     messages: [{ id: "game", content: "Game created" }],
+    gameStarted: false,
   };
 };
 
@@ -52,6 +54,7 @@ type PayloadAction<T, P = undefined> = P extends undefined
 
 type Payloads =
   | PayloadAction<"addPlayer", { id: string; nickname: string }>
+  | PayloadAction<"startGame">
   | PayloadAction<
       "playCard",
       {
@@ -70,30 +73,49 @@ type Payloads =
         color: SolidColor;
         destinationColor?: SolidColor;
       }
-    >;
+    >
+  | PayloadAction<"endTurn", number>;
 
 const reducer: Reducer<GameState, Payloads> = (state, action) => {
   switch (action.type) {
     case "addPlayer": {
-      const { players = [], deck, messages } = state;
-      const [playerHand, newDeck] = takeFirstN(
-        deck.filter(({ type }) => type === "property"),
-        17
-      );
+      const { players = [], messages } = state;
       const newPlayer: Player = {
         ...action.payload,
-        hand: playerHand,
+        hand: [],
         properties: {},
         money: [],
+        movesLeft: 0,
       };
       return {
         ...state,
         players: [...players, newPlayer],
-        deck: newDeck,
         messages: [
           ...messages,
           { id: "game", content: `${action.payload.nickname} has joined!` },
         ],
+      };
+    }
+    case "startGame": {
+      const { players = [] } = state;
+      // if (players.length <= 1) return state;
+      const shuffledPlayers = _.shuffle(players);
+      const deck = _.shuffle(
+        cards.flatMap(card => Array(defaultCardConfig[card.id]).fill(card))
+      );
+      let newDeck = deck.filter(({ type }) => ["money", "property"].includes(type));
+      const newPlayers = shuffledPlayers.map((player, index) => {
+        let hand;
+        [hand, newDeck] = takeFirstN(newDeck, index === 0 ? 7 : 5);
+        return { ...player, hand };
+      });
+      newPlayers[0].movesLeft = 3;
+      return {
+        ...state,
+        players: newPlayers,
+        deck: newDeck,
+        gameStarted: true,
+        currentPlayerId: newPlayers[0].id,
       };
     }
     case "playCard": {
@@ -107,7 +129,8 @@ const reducer: Reducer<GameState, Payloads> = (state, action) => {
         console.error(`Unable to find player with id: ${playerId}`);
         return state;
       }
-      const { hand, properties, money, nickname } = currentPlayer;
+      const { hand, properties, money, nickname, movesLeft } = currentPlayer;
+      if (movesLeft === 0) return state;
       const [newHand, card] = removeFromArray(hand, index);
       let newProperties = properties;
       let newMoney = money;
@@ -132,6 +155,7 @@ const reducer: Reducer<GameState, Payloads> = (state, action) => {
         }
         case "money": {
           newMoney = [...money, card];
+          newMessageContent = `${nickname} played money`;
           break;
         }
         case "action": {
@@ -153,6 +177,7 @@ const reducer: Reducer<GameState, Payloads> = (state, action) => {
         hand: newHand,
         properties: newProperties,
         money: newMoney,
+        movesLeft: movesLeft - 1,
       };
       newPlayers = setValueInArray(newPlayers, currentPlayerIndex, newPlayer);
       return {
@@ -233,6 +258,31 @@ const reducer: Reducer<GameState, Payloads> = (state, action) => {
         ...state,
         players: newPlayers,
         messages: [...messages, { id: "game", content: `${nickname} flipped wildcard` }],
+      };
+    }
+    case "endTurn": {
+      const { players, deck, messages } = state;
+      const currentPlayerIndex = action.payload;
+      const currentPlayer = players[action.payload];
+      const newPlayers = [...players];
+      newPlayers[currentPlayerIndex] = { ...currentPlayer, movesLeft: 0 };
+      const [twoCards, newDeck] = takeFirstN(deck, 2);
+      const nextIndex = (currentPlayerIndex + 1) % players.length;
+      const nextPlayer = newPlayers[nextIndex];
+      newPlayers[nextIndex] = {
+        ...nextPlayer,
+        hand: [...nextPlayer.hand, ...twoCards],
+        movesLeft: 3,
+      };
+      return {
+        ...state,
+        deck: newDeck,
+        players: newPlayers,
+        messages: [
+          ...messages,
+          { id: "game", content: `${currentPlayer.nickname} ended turn` },
+        ],
+        currentPlayerId: nextPlayer.id,
       };
     }
     default: {

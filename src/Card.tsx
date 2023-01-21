@@ -5,9 +5,9 @@ import { SystemStyleObject } from "@mui/system";
 import { Theme } from "@mui/material";
 import { moneyToColor, colorToColor, rainbowBackground, stagesMap } from "./constants";
 
-interface CardProps {
+export interface CardProps {
   card: TCard;
-  onFlip: (card: TCard) => void;
+  onFlip?: (card: TCard) => void;
   onClick?: (card: TCard) => void;
   /** Used for when the card is a rainbow */
   currentSet?: SolidColor;
@@ -52,7 +52,7 @@ const Card = ({ card, onFlip, onClick, currentSet, sx }: CardProps) => {
           }}
           onClick={e => {
             e.stopPropagation();
-            onFlip(card);
+            onFlip?.(card);
           }}
         >
           <ImportExportIcon sx={{ fontSize: 12 }} />
@@ -88,7 +88,7 @@ const Card = ({ card, onFlip, onClick, currentSet, sx }: CardProps) => {
         <>
           {isDual && reverseCircle}
           <Typography
-            sx={{ backgroundColor: "rgba(0,0,0,0.3)", fontSize: 7, padding: "2px 4px" }}
+            sx={{ backgroundColor: "rgba(0,0,0,0.3)", fontSize: 6, padding: "2px 4px" }}
           >
             {colorToUse.replace("_", " ")}
           </Typography>
@@ -106,21 +106,22 @@ const Card = ({ card, onFlip, onClick, currentSet, sx }: CardProps) => {
                   opacity: (index + 1) / stagesToUse.length + 0.1,
                 }}
               >
-                <Typography fontSize={8}>{index + 1}</Typography>
-                <Typography fontSize={8}>------</Typography>
-                <Typography fontSize={8}>{value}M</Typography>
+                <Typography fontSize={6}>{index + 1}</Typography>
+                <Typography fontSize={6}>------</Typography>
+                <Typography fontSize={6}>{value}M</Typography>
               </Box>
             ))}
           </Box>
           <Typography
             sx={{
-              fontSize: 8,
+              fontSize: 6,
               paddingX: 1,
               marginBottom: 0.5,
               ...(isDual && {
                 backgroundColor: colorToColor[color[1]],
                 marginBottom: 0,
-                paddingY: 1,
+                marginTop: "-4px",
+                paddingY: 0.5,
                 width: "100%",
               }),
             }}
@@ -143,6 +144,10 @@ const Card = ({ card, onFlip, onClick, currentSet, sx }: CardProps) => {
         boxShadow: theme => `0 0 0 1px ${theme.palette.grey[800]}`,
         position: "relative",
         borderRadius: 2,
+        width: "var(--size)",
+        height: "calc(1.5 * var(--size))",
+        transition: "all 0.2s ease 0s",
+        ":hover": { transform: "scale(1.2)", zIndex: 2, marginRight: "58px" },
         ...sx,
       }}
       onClick={() => onClick?.(card)}
@@ -151,8 +156,6 @@ const Card = ({ card, onFlip, onClick, currentSet, sx }: CardProps) => {
         className="perfect-center"
         sx={{
           flexDirection: "column",
-          width: 88.5,
-          height: 135,
           color: "white",
           backgroundColor,
           borderRadius: 2,
@@ -160,60 +163,56 @@ const Card = ({ card, onFlip, onClick, currentSet, sx }: CardProps) => {
           border: "4px solid white",
           position: "relative",
           overflow: "hidden",
-          transition: "all 0.2s ease 0s",
           userSelect: "none",
+          height: "100%",
           ":hover": {
             cursor: "grab",
           },
           ...otherStyles,
         }}
       >
-        {type !== "money" && (
-          <>
+        <Box
+          sx={{
+            backgroundColor: "white",
+            width: "calc(var(--size)/3)",
+            height: "calc(var(--size)/3)",
+            position: "absolute",
+            top: 0,
+            left: 0,
+            transform: "translate(-50%, -50%) rotate(45deg)",
+          }}
+        />
+        <Box
+          className="perfect-center"
+          sx={{
+            position: "absolute",
+            backgroundColor,
+            border: "2px solid white",
+            borderRadius: "50%",
+            fontSize: 8,
+            width: "calc(var(--size)*1/4)",
+            height: "calc(var(--size)*1/4)",
+            top: -2,
+            left: -2,
+            flexDirection: "column",
+            overflow: "hidden",
+          }}
+        >
+          {secondValueColor && (
             <Box
               sx={{
-                backgroundColor: "white",
-                width: 30,
-                height: 30,
                 position: "absolute",
-                top: 0,
-                left: 0,
-                transform: "translate(-50%, -50%) rotate(45deg)",
+                bottom: 0,
+                width: "100%",
+                height: "calc((var(--size)*1/8) - 2px)",
+                backgroundColor: secondValueColor,
               }}
-            />
-            <Box
-              className="perfect-center"
-              sx={{
-                position: "absolute",
-                backgroundColor,
-                border: "2px solid white",
-                borderRadius: "50%",
-                fontSize: 8,
-                width: 20,
-                height: 20,
-                top: -2,
-                left: -2,
-                flexDirection: "column",
-                overflow: "hidden",
-              }}
-            >
-              {secondValueColor && (
-                <Box
-                  sx={{
-                    position: "absolute",
-                    bottom: 0,
-                    width: "100%",
-                    height: 10,
-                    backgroundColor: secondValueColor,
-                  }}
-                ></Box>
-              )}
-              <Typography fontSize="inherit" fontWeight="medium" zIndex={1}>
-                {value}M
-              </Typography>
-            </Box>
-          </>
-        )}
+            ></Box>
+          )}
+          <Typography fontSize="inherit" fontWeight="medium" zIndex={1}>
+            {value}M
+          </Typography>
+        </Box>
         {content}
       </Box>
     </Box>
