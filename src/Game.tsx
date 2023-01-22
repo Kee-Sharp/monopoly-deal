@@ -227,6 +227,7 @@ const Game = ({ clientId, roomId, gameState, dispatch }: GameProps) => {
             display: "flex",
             alignItems: "center",
             overflowX: "auto",
+            overscrollBehavior: "contain",
             height: "100%",
           }}
         >

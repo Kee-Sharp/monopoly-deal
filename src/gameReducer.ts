@@ -242,6 +242,7 @@ const reducer: Reducer<GameState, Payloads> = (state, action) => {
         console.error(`Card at index ${index} is not a wildcard`);
         return state;
       }
+      if (newColor === color) return state;
       let newPileNewColor = properties[newColor] ?? [];
       newPileNewColor = [
         ...newPileNewColor,
