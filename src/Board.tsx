@@ -1,15 +1,19 @@
 import { colors, Player, SolidColor, TCard } from "./gameReducer";
 import { Box, Dialog, Typography } from "@mui/material";
+import { SystemStyleObject } from "@mui/system";
+import { Theme } from "@mui/material";
 import { useState } from "react";
 import Card from "./Card";
 
 interface BoardProps {
   player: Player;
   myBoard?: boolean;
+  isTurn?: boolean;
   onFlip?: (card: TCard, index: number, currentColor: SolidColor) => void;
+  sx?: SystemStyleObject<Theme>;
 }
-const Board = ({ player, myBoard, onFlip }: BoardProps) => {
-  const { id, nickname, hand, properties, money } = player;
+const Board = ({ player, myBoard, isTurn = false, onFlip, sx }: BoardProps) => {
+  const { nickname, displayHex, hand = [], properties = {}, money = [] } = player;
   const [showBills, setShowBills] = useState(false);
   const highestNumber = colors.reduce((prevHighest, current) => {
     const colorNumber = properties[current]?.length ?? 0;
@@ -20,10 +24,11 @@ const Board = ({ player, myBoard, onFlip }: BoardProps) => {
       sx={{
         backgroundColor: "black",
         border: "4px solid",
-        borderColor: "primary.main",
+        borderColor: displayHex,
         borderRadius: 1,
         padding: 2,
         position: "relative",
+        ...sx,
       }}
     >
       <Dialog
@@ -73,6 +78,7 @@ const Board = ({ player, myBoard, onFlip }: BoardProps) => {
           justifyContent: "space-between",
           color: "white",
           marginBottom: 2,
+          gap: 2,
         }}
       >
         <Typography>{nickname}</Typography>
@@ -104,7 +110,7 @@ const Board = ({ player, myBoard, onFlip }: BoardProps) => {
               key={color}
               sx={{
                 height: "min-content",
-                transformOrigin: "center top",
+                transformOrigin: "top left",
                 transition: "all 0.2s ease 0s",
                 ":hover": { transform: "scale(1.2)", zIndex: 2 },
               }}
@@ -113,6 +119,7 @@ const Board = ({ player, myBoard, onFlip }: BoardProps) => {
                 <Card
                   key={`${color}-card ${card.id}-${index}`}
                   card={card}
+                  canFlip={isTurn}
                   onFlip={card => onFlip?.(card, index, color)}
                   currentSet={color}
                   sx={{
@@ -120,6 +127,7 @@ const Board = ({ player, myBoard, onFlip }: BoardProps) => {
                       marginTop: "calc(-1.5 * var(--size) * 0.82)",
                     },
                     ":hover": {},
+                    ...((!myBoard || !isTurn) && { cursor: "default" }),
                   }}
                 />
               ))}

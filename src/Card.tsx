@@ -7,6 +7,7 @@ import { moneyToColor, colorToColor, rainbowBackground, stagesMap } from "./cons
 
 export interface CardProps {
   card: TCard;
+  canFlip?: boolean;
   onFlip?: (card: TCard) => void;
   onClick?: (card: TCard) => void;
   /** Used for when the card is a rainbow */
@@ -14,7 +15,7 @@ export interface CardProps {
   sx?: SystemStyleObject<Theme>;
 }
 
-const Card = ({ card, onFlip, onClick, currentSet, sx }: CardProps) => {
+const Card = ({ card, canFlip = true, onFlip, onClick, currentSet, sx }: CardProps) => {
   const { type, value } = card;
   let content: React.ReactNode = null;
   let backgroundColor = "black";
@@ -45,14 +46,18 @@ const Card = ({ card, onFlip, onClick, currentSet, sx }: CardProps) => {
             right: -2,
             flexDirection: "column",
             color: "black",
-            ":hover": {
-              opacity: 0.7,
-              cursor: "pointer",
-            },
+            ...(canFlip && {
+              ":hover": {
+                opacity: 0.7,
+                cursor: "pointer",
+              },
+            }),
           }}
           onClick={e => {
-            e.stopPropagation();
-            onFlip?.(card);
+            if (canFlip) {
+              e.stopPropagation();
+              onFlip?.(card);
+            }
           }}
         >
           <ImportExportIcon sx={{ fontSize: 12 }} />
@@ -147,7 +152,12 @@ const Card = ({ card, onFlip, onClick, currentSet, sx }: CardProps) => {
         width: "var(--size)",
         height: "calc(1.5 * var(--size))",
         transition: "all 0.2s ease 0s",
-        ":hover": { transform: "scale(1.2)", zIndex: 2, marginRight: "58px" },
+        ":hover": {
+          transform: "scale(1.2)",
+          zIndex: 2,
+          marginRight: "58px",
+          cursor: "grab",
+        },
         ...sx,
       }}
       onClick={() => onClick?.(card)}
@@ -165,9 +175,6 @@ const Card = ({ card, onFlip, onClick, currentSet, sx }: CardProps) => {
           overflow: "hidden",
           userSelect: "none",
           height: "100%",
-          ":hover": {
-            cursor: "grab",
-          },
           ...otherStyles,
         }}
       >

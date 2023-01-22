@@ -1,15 +1,21 @@
-import { useLayoutEffect, useReducer, useState, useEffect, useRef } from "react";
-import gameReducer, { colors, init, Player, SolidColor } from "./gameReducer";
+import { useState, useEffect, useRef } from "react";
+import { colors, GameState, Payloads, Player, SolidColor } from "./gameReducer";
 import { Box, Button, Dialog, Divider, Typography } from "@mui/material";
 import Card from "./Card";
 import { colorToColor } from "./constants";
 import Board from "./Board";
 
-const clientId = "a";
+interface GameProps {
+  clientId: string;
+  roomId: string;
+  gameState: GameState;
+  dispatch: (payload: Payloads) => Promise<void>;
+}
 
-const Game = () => {
-  const [gameState, dispatch] = useReducer(gameReducer, init());
+const Game = ({ clientId, roomId, gameState, dispatch }: GameProps) => {
   const { players, messages, gameStarted } = gameState;
+
+  const [copied, setCopied] = useState(false);
 
   const [chooseColorOptions, setChooseColorOptions] = useState<{
     properties: Player["properties"];
@@ -18,12 +24,6 @@ const Game = () => {
 
   const [scrolled, setScrolled] = useState(false);
   const cardContainerRef = useRef<HTMLDivElement>(null);
-
-  useLayoutEffect(() => {
-    if (!players.length) {
-      dispatch({ type: "addPlayer", payload: { id: clientId, nickname: "player 1" } });
-    }
-  }, [players.length]);
 
   useEffect(() => {
     console.log(messages.at(-1)?.content);
@@ -42,7 +42,60 @@ const Game = () => {
   if (!thisPlayer) return <></>;
 
   if (!gameStarted)
-    return <Button onClick={() => dispatch({ type: "startGame" })}>Start Game</Button>;
+    return (
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "flex-start",
+          margin: 4,
+        }}
+      >
+        <Box sx={{ display: "flex", marginBottom: 4, alignItems: "center" }}>
+          <Typography sx={{ color: "white" }}>code:</Typography>
+          <Typography
+            sx={{
+              backgroundColor: "grey.900",
+              border: "2px solid",
+              borderColor: "primary.main",
+              borderRadius: 2,
+              padding: 1,
+              color: "primary.main",
+              position: "relative",
+              marginLeft: 2,
+              cursor: "pointer",
+            }}
+            onClick={() => {
+              navigator.clipboard.writeText(roomId);
+              setCopied(true);
+            }}
+          >
+            {roomId}
+            <Typography
+              sx={{ position: "absolute", fontSize: 10, right: 0, top: -16 }}
+              component="span"
+              color={copied ? "primary.main" : "white"}
+            >
+              {copied ? "copied!" : "click to copy"}
+            </Typography>
+          </Typography>
+        </Box>
+        <Typography color="white">Friends who have joined</Typography>
+        {players.map(({ id, displayHex, nickname }) => (
+          <Typography key={id} sx={{ color: displayHex }}>
+            {nickname}
+          </Typography>
+        ))}
+        <Button
+          variant="contained"
+          onClick={() => dispatch({ type: "startGame" })}
+          sx={{ marginTop: 4 }}
+          disabled={players.length <= 1}
+        >
+          Start Game
+        </Button>
+      </Box>
+    );
 
   const { id, hand = [], properties = {}, movesLeft: thisPlayerMovesLeft } = thisPlayer;
   const otherPlayers = players.filter(({ id }) => id !== clientId);
@@ -52,14 +105,16 @@ const Game = () => {
   const {
     id: currentPlayerId,
     nickname: currentPlayerNickname,
+    displayHex,
     movesLeft,
   } = players[currentPlayerIndex];
 
   const isThisPlayersTurn = currentPlayerId === id;
   const moreThan7 = hand.length > 7;
+  const nextPlayer = players[(currentPlayerIndex + 1) % players.length];
 
   return (
-    <Box padding={4}>
+    <Box padding={4} paddingTop={2}>
       {chooseColorOptions && (
         <Dialog
           open
@@ -102,9 +157,22 @@ const Game = () => {
           </Box>
         </Dialog>
       )}
+      <Box
+        className="custom-scrollbar"
+        sx={{ display: "flex", overflowX: "auto", paddingBottom: 0.75 }}
+      >
+        {otherPlayers.map(otherPlayer => (
+          <Board
+            key={otherPlayer.id}
+            player={otherPlayer}
+            sx={{ zoom: 0.7, marginRight: 1, flexShrink: 0 }}
+          />
+        ))}
+      </Box>
       <Board
         player={thisPlayer}
-        // myBoard
+        myBoard
+        isTurn={isThisPlayersTurn}
         onFlip={(card, index, currentColor) => {
           if (card.type === "property" && card.color === "rainbow") {
             setChooseColorOptions({
@@ -131,6 +199,7 @@ const Game = () => {
             });
           }
         }}
+        sx={{ marginTop: 1 }}
       />
       {/* Hand Section */}
       <Box
@@ -148,6 +217,7 @@ const Game = () => {
           borderTopRightRadius: 32,
           boxShadow: 2,
           overflowX: "hidden",
+          zIndex: 3,
         }}
       >
         <Box
@@ -178,20 +248,21 @@ const Game = () => {
                 display: "flex",
                 flexDirection: "column",
                 justifyContent: isThisPlayersTurn ? "space-between" : "center",
-                paddingY: moreThan7 ? 4 : 5,
+                paddingY: moreThan7 ? 3 : 4,
                 maxWidth: 70,
               }}
             >
               <Box>
-                <Typography
-                  fontSize="10px"
-                  color="primary.light"
-                >{`${currentPlayerNickname} has ${movesLeft} move${
-                  movesLeft === 1 ? "" : "s"
-                } left`}</Typography>
-                <Typography fontSize="8px" color="white">{`${
-                  players[(currentPlayerIndex + 1) % players.length].nickname
-                } is up next`}</Typography>
+                <Typography fontSize="10px" color="white" sx={{ marginBottom: 1 }}>
+                  <span style={{ color: displayHex }}>{currentPlayerNickname}</span>
+                  {` has ${movesLeft} move${movesLeft === 1 ? "" : "s"} left`}
+                </Typography>
+                <Typography fontSize="8px" color="white">
+                  <span style={{ color: nextPlayer.displayHex }}>
+                    {nextPlayer.nickname}
+                  </span>
+                  {` is up next`}
+                </Typography>
               </Box>
               {isThisPlayersTurn && (
                 <Button

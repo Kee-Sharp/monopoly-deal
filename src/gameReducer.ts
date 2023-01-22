@@ -1,7 +1,7 @@
 import _ from "lodash";
 import { Reducer } from "react";
 import cards from "./cards.json";
-import { defaultCardConfig } from "./constants";
+import { colorToColor, defaultCardConfig } from "./constants";
 import { removeFromArray, setValueInArray, takeFirstN } from "./utils";
 
 // prettier-ignore
@@ -27,6 +27,8 @@ export type TCard = {
 export interface Player {
   id: string;
   nickname: string;
+  /** Used as this player's theme color */
+  displayHex: string;
   hand: TCard[];
   properties: { [color in SolidColor]?: Extract<TCard, { type: "property" }>[] };
   money: TCard[];
@@ -52,7 +54,7 @@ type PayloadAction<T, P = undefined> = P extends undefined
   ? { type: T }
   : { type: T; payload: P };
 
-type Payloads =
+export type Payloads =
   | PayloadAction<"addPlayer", { id: string; nickname: string }>
   | PayloadAction<"startGame">
   | PayloadAction<
@@ -80,8 +82,12 @@ const reducer: Reducer<GameState, Payloads> = (state, action) => {
   switch (action.type) {
     case "addPlayer": {
       const { players = [], messages } = state;
+      const color = colors.filter(color => color !== "black" && color !== "brown")[
+        players.length
+      ];
       const newPlayer: Player = {
         ...action.payload,
+        displayHex: colorToColor[color],
         hand: [],
         properties: {},
         money: [],
@@ -98,7 +104,7 @@ const reducer: Reducer<GameState, Payloads> = (state, action) => {
     }
     case "startGame": {
       const { players = [] } = state;
-      // if (players.length <= 1) return state;
+      if (players.length <= 1) return state;
       const shuffledPlayers = _.shuffle(players);
       const deck = _.shuffle(
         cards.flatMap(card => Array(defaultCardConfig[card.id]).fill(card))
@@ -129,7 +135,7 @@ const reducer: Reducer<GameState, Payloads> = (state, action) => {
         console.error(`Unable to find player with id: ${playerId}`);
         return state;
       }
-      const { hand, properties, money, nickname, movesLeft } = currentPlayer;
+      const { hand, properties = {}, money = [], nickname, movesLeft } = currentPlayer;
       if (movesLeft === 0) return state;
       const [newHand, card] = removeFromArray(hand, index);
       let newProperties = properties;
@@ -224,7 +230,7 @@ const reducer: Reducer<GameState, Payloads> = (state, action) => {
         console.error(`Unable to find player with id: ${playerId}`);
         return state;
       }
-      const { properties, nickname } = currentPlayer;
+      const { properties = {}, nickname } = currentPlayer;
       const pile = properties[color] ?? [];
       const [newPileOldColor, card] = removeFromArray(pile, index);
       let newColor;
