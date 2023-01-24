@@ -1,15 +1,20 @@
 import { useState, useEffect, useRef } from "react";
-import { colors, GameState, Payloads, Player, SolidColor } from "./gameReducer";
+import { colors, GameState, Payloads, Player, SolidColor, TCard } from "./gameReducer";
 import { Box, Button, Dialog, Divider, Typography } from "@mui/material";
 import Card from "./Card";
-import { colorToColor } from "./constants";
+import { colorToColor, stagesMap } from "./constants";
 import Board from "./Board";
+import { useToggle } from "./hooks";
 
 interface GameProps {
   clientId: string;
   roomId: string;
   gameState: GameState;
   dispatch: (payload: Payloads) => Promise<void>;
+}
+interface ColorOptions {
+  color: SolidColor;
+  amountInSet: number;
 }
 
 const Game = ({ clientId, roomId, gameState, dispatch }: GameProps) => {
@@ -18,9 +23,12 @@ const Game = ({ clientId, roomId, gameState, dispatch }: GameProps) => {
   const [copied, setCopied] = useState(false);
 
   const [chooseColorOptions, setChooseColorOptions] = useState<{
-    properties: Player["properties"];
+    colorOptions: ColorOptions[];
+    isRent?: boolean;
     onChoose: (color: SolidColor) => void;
   }>();
+  const [selectedProperties, toggleSelectedProperties] = useToggle<TCard>();
+  const [selectedMoney, toggleSelectedMoney] = useToggle<TCard>();
 
   const [scrolled, setScrolled] = useState(false);
   const cardContainerRef = useRef<HTMLDivElement>(null);
@@ -38,10 +46,15 @@ const Game = ({ clientId, roomId, gameState, dispatch }: GameProps) => {
     return () => cardContainer?.removeEventListener("scroll", handleScroll);
   });
 
-  const thisPlayer = players.find(({ id }) => id === clientId);
+  const playersMap = players.reduce<Record<string, Player>>(
+    (map, player) => ({ ...map, [player.id]: player }),
+    {}
+  );
+
+  const thisPlayer = playersMap[clientId];
   if (!thisPlayer) return <></>;
 
-  if (!gameStarted)
+  if (!gameStarted) {
     return (
       <Box
         sx={{
@@ -96,8 +109,25 @@ const Game = ({ clientId, roomId, gameState, dispatch }: GameProps) => {
         </Button>
       </Box>
     );
+  }
 
-  const { id, hand = [], properties = {}, movesLeft: thisPlayerMovesLeft } = thisPlayer;
+  const {
+    id,
+    hand = [],
+    properties = [],
+    money = [],
+    movesLeft: thisPlayerMovesLeft,
+    rentDue,
+  } = thisPlayer;
+
+  const propertiesMap = properties.reduce((map, property) => {
+    const color = property.actingColor ?? (property.color as SolidColor);
+    return { ...map, [color]: [...(map[color] ?? []), property] };
+  }, {} as Record<SolidColor, Player["properties"][number][]>);
+  const allColorOptions = Object.entries(propertiesMap).map<ColorOptions>(
+    ([color, { length }]) => ({ color: color as SolidColor, amountInSet: length })
+  );
+
   const otherPlayers = players.filter(({ id }) => id !== clientId);
   const currentPlayerIndex = players.findIndex(
     ({ id }) => id === gameState.currentPlayerId
@@ -112,9 +142,160 @@ const Game = ({ clientId, roomId, gameState, dispatch }: GameProps) => {
   const isThisPlayersTurn = currentPlayerId === id;
   const moreThan7 = hand.length > 7;
   const nextPlayer = players[(currentPlayerIndex + 1) % players.length];
+  const playersWithRent = players.filter(({ rentDue }) => !!rentDue);
+  const playerChargingRentId = playersWithRent[0]?.rentDue?.playerId;
+  const playerChargingRent = playerChargingRentId
+    ? playersMap[playerChargingRentId]
+    : undefined;
+  const totalSelected = [...selectedMoney, ...selectedProperties].reduce(
+    (total, card) => total + (card?.value ?? 0),
+    0
+  );
+  const isBroke = properties.length === 0 && money.length === 0;
+  const allSelected = [properties, money].every((arr, isMoney) =>
+    arr.every((_, index) => (isMoney ? selectedMoney[index] : selectedProperties[index]))
+  );
+  const canPayRent = totalSelected >= (rentDue?.amount ?? 0) || isBroke || allSelected;
 
   return (
     <Box padding={4} paddingTop={2}>
+      {rentDue && (
+        <Dialog open sx={{ ".MuiPaper-root": { backgroundColor: "grey.900" } }}>
+          <Box
+            sx={{
+              padding: 2,
+              borderRadius: 2,
+              backgroundColor: "grey.900",
+              border: `2px solid ${playerChargingRent?.displayHex}`,
+            }}
+          >
+            <Box
+              sx={{
+                width: "100%",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                marginBottom: 2,
+                gap: 1,
+              }}
+            >
+              <Typography sx={{ color: "white" }}>
+                You owe{" "}
+                <span style={{ color: playerChargingRent?.displayHex }}>
+                  {rentDue.amount}M
+                </span>{" "}
+                in rent to{" "}
+                <span style={{ color: playerChargingRent?.displayHex }}>
+                  {playerChargingRent?.nickname}
+                </span>
+              </Typography>
+              <Box
+                className="perfect-center"
+                sx={{
+                  width: "40px",
+                  height: "40px",
+                  borderRadius: "50%",
+                  backgroundColor: canPayRent ? "lightgreen" : "coral",
+                  color: canPayRent ? "black" : "white",
+                  fontWeight: "medium",
+                  fontSize: 12,
+                }}
+              >
+                {totalSelected}M
+              </Box>
+            </Box>
+            <Box
+              className="custom-scrollbar"
+              sx={{ display: "flex", overflowX: "auto", gap: 0.5 }}
+            >
+              {properties.map((property, index) => (
+                <Card
+                  key={`property-${index}`}
+                  card={property}
+                  canFlip={false}
+                  onClick={() => toggleSelectedProperties(index, property)}
+                  sx={{
+                    flexShrink: 0,
+                    zoom: 0.9,
+                    ":hover": {},
+                    ...(!!selectedProperties[index] && {
+                      color: "red",
+                      "&::after": {
+                        content: "''",
+                        backgroundColor: "rgb(33,173,153)",
+                        opacity: "0.8",
+                        position: "absolute",
+                        inset: "0px",
+                        zIndex: 4,
+                      },
+                    }),
+                  }}
+                />
+              ))}
+            </Box>
+            <Box
+              className="custom-scrollbar"
+              sx={{ display: "flex", overflowX: "auto", gap: 0.5, marginY: 1 }}
+            >
+              {money.map((moneyCard, index) => (
+                <Card
+                  key={`moneyCard-${index}`}
+                  card={moneyCard}
+                  canFlip={false}
+                  onClick={() => toggleSelectedMoney(index, moneyCard)}
+                  sx={{
+                    flexShrink: 0,
+                    zoom: 0.9,
+                    ":hover": {},
+                    ...(!!selectedMoney[index] && {
+                      "&::after": {
+                        content: "''",
+                        backgroundColor: "rgb(33,173,153)",
+                        opacity: "0.8",
+                        position: "absolute",
+                        inset: "0px",
+                        zIndex: 4,
+                      },
+                    }),
+                  }}
+                />
+              ))}
+            </Box>
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-around",
+                paddingTop: 2,
+                gap: 0.5,
+              }}
+            >
+              <Button
+                className={canPayRent ? "" : "disabled"}
+                color="success"
+                variant="contained"
+                sx={{ fontSize: 10 }}
+                onClick={() =>
+                  dispatch({
+                    type: "payRent",
+                    payload: { playerId: id, selectedProperties, selectedMoney },
+                  })
+                }
+              >
+                Pay Rent
+              </Button>
+              <Button
+                className="disabled"
+                color="error"
+                variant="contained"
+                sx={{ fontSize: 10 }}
+              >
+                Use Just Say No!
+              </Button>
+            </Box>
+          </Box>
+        </Dialog>
+      )}
       {chooseColorOptions && (
         <Dialog
           open
@@ -130,30 +311,36 @@ const Game = ({ clientId, roomId, gameState, dispatch }: GameProps) => {
               gap: 1,
             }}
           >
-            {colors
-              .filter(color => properties[color]?.length)
-              .map((color, index) => (
-                <Box
-                  key={index}
-                  className="perfect-center"
-                  onClick={() => {
-                    chooseColorOptions.onChoose(color);
-                    setChooseColorOptions(undefined);
-                  }}
-                  sx={{
-                    width: 100,
-                    height: 100,
-                    backgroundColor: colorToColor[color],
-                    userSelect: "none",
-                    color: "white",
-                    borderRadius: 2,
-                    cursor: "pointer",
-                    // flex: "33%",
-                  }}
-                >
-                  {color.replace("_", " ")}
-                </Box>
-              ))}
+            {chooseColorOptions.colorOptions.map(({ color, amountInSet }, index) => (
+              <Box
+                key={index}
+                className="perfect-center"
+                onClick={() => {
+                  chooseColorOptions.onChoose(color);
+                  setChooseColorOptions(undefined);
+                }}
+                sx={{
+                  flexDirection: "column",
+                  width: 100,
+                  height: 100,
+                  backgroundColor: colorToColor[color],
+                  userSelect: "none",
+                  color: "white",
+                  borderRadius: 2,
+                  cursor: "pointer",
+                }}
+              >
+                <Typography>{color.replace("_", " ")}</Typography>
+                {chooseColorOptions.isRent && (
+                  <Typography>
+                    {stagesMap[color][
+                      Math.min(amountInSet - 1, stagesMap[color].length - 1)
+                    ] ?? 0}
+                    M
+                  </Typography>
+                )}
+              </Box>
+            ))}
           </Box>
         </Dialog>
       )}
@@ -173,28 +360,29 @@ const Game = ({ clientId, roomId, gameState, dispatch }: GameProps) => {
         player={thisPlayer}
         myBoard
         isTurn={isThisPlayersTurn}
-        onFlip={(card, index, currentColor) => {
+        onFlip={(card, index) => {
           if (card.type === "property" && card.color === "rainbow") {
             setChooseColorOptions({
-              properties,
+              colorOptions: allColorOptions,
               onChoose: chosenColor =>
                 dispatch({
                   type: "flipPropertyCard",
                   payload: {
                     playerId: id,
                     index,
-                    color: currentColor,
                     destinationColor: chosenColor,
                   },
                 }),
             });
-          } else {
+          } else if (card.type === "property" && Array.isArray(card.color)) {
             dispatch({
               type: "flipPropertyCard",
               payload: {
                 playerId: id,
                 index,
-                color: currentColor as SolidColor,
+                destinationColor: card.color.filter(
+                  color => color !== card.actingColor
+                )[0],
               },
             });
           }
@@ -231,6 +419,7 @@ const Game = ({ clientId, roomId, gameState, dispatch }: GameProps) => {
             height: "100%",
           }}
         >
+          {/* Game Info */}
           <Box
             sx={{
               display: "flex",
@@ -239,7 +428,7 @@ const Game = ({ clientId, roomId, gameState, dispatch }: GameProps) => {
               position: "sticky",
               top: 0,
               left: 0,
-              zIndex: 3,
+              zIndex: 4,
               backgroundColor: "grey.900",
               ...(scrolled && { boxShadow: "0px 0px 2px #333" }),
             }}
@@ -258,6 +447,19 @@ const Game = ({ clientId, roomId, gameState, dispatch }: GameProps) => {
                   <span style={{ color: displayHex }}>{currentPlayerNickname}</span>
                   {` has ${movesLeft} move${movesLeft === 1 ? "" : "s"} left`}
                 </Typography>
+                {!!playersWithRent.length && (
+                  <Typography fontSize="10px" color="white" sx={{ marginBottom: 1 }}>
+                    <Typography
+                      fontSize="10px"
+                      fontWeight="bold"
+                      component="span"
+                      color="error.main"
+                    >{`${playersWithRent.length} player${
+                      playersWithRent.length === 1 ? "" : "s"
+                    } `}</Typography>
+                    {`need${playersWithRent.length === 1 ? "s" : ""} to pay RENT`}
+                  </Typography>
+                )}
                 <Typography fontSize="8px" color="white">
                   <span style={{ color: nextPlayer.displayHex }}>
                     {nextPlayer.nickname}
@@ -267,6 +469,7 @@ const Game = ({ clientId, roomId, gameState, dispatch }: GameProps) => {
               </Box>
               {isThisPlayersTurn && (
                 <Button
+                  className={playerChargingRentId === id ? "disabled" : ""}
                   color="error"
                   variant="contained"
                   sx={{ fontSize: 8 }}
@@ -285,7 +488,15 @@ const Game = ({ clientId, roomId, gameState, dispatch }: GameProps) => {
               sx={{ backgroundColor: "white", marginX: 1.5, marginY: 2 }}
             ></Divider>
           </Box>
-          <Box sx={{ display: "flex", alignItems: "center" }}>
+          {/* Cards in Hand */}
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              marginLeft: 1,
+              ...(playerChargingRentId === id && { opacity: 0.2 }),
+            }}
+          >
             {hand.map((card, index) => {
               return (
                 <Card
@@ -300,12 +511,12 @@ const Game = ({ clientId, roomId, gameState, dispatch }: GameProps) => {
                   onClick={card => {
                     if (!thisPlayerMovesLeft) return;
                     if (card.type === "property" && card.color === "rainbow") {
-                      if (!Object.entries(properties).some(([_, pile]) => pile?.length)) {
+                      if (!properties.length) {
                         // Display alert that you can't play a rainbow without properties
                         return;
                       }
                       setChooseColorOptions({
-                        properties,
+                        colorOptions: allColorOptions,
                         onChoose: color => {
                           dispatch({
                             type: "playCard",
@@ -313,10 +524,47 @@ const Game = ({ clientId, roomId, gameState, dispatch }: GameProps) => {
                           });
                         },
                       });
+                    } else if (card.type === "rent") {
+                      const options = Array.isArray(card.color)
+                        ? card.color.reduce<ColorOptions[]>(
+                            (acc, color) => [
+                              ...acc,
+                              { color, amountInSet: propertiesMap[color]?.length ?? 0 },
+                            ],
+                            []
+                          )
+                        : allColorOptions;
+                      setChooseColorOptions({
+                        colorOptions: options,
+                        isRent: true,
+                        onChoose: color => {
+                          const amountOfPropertiesInSet = (propertiesMap[color] ?? [])
+                            .length;
+                          const amountToCharge = amountOfPropertiesInSet
+                            ? stagesMap[color][
+                                Math.min(
+                                  amountOfPropertiesInSet - 1,
+                                  stagesMap[color].length - 1
+                                )
+                              ]
+                            : 0;
+                          dispatch({
+                            type: "playCard",
+                            payload: { playerId: id, index, amountToCharge },
+                          });
+                        },
+                      });
                     } else {
                       dispatch({
                         type: "playCard",
-                        payload: { playerId: id, index },
+                        payload: {
+                          playerId: id,
+                          index,
+                          destinationColor:
+                            card.type === "property" && Array.isArray(card.color)
+                              ? card.color[0]
+                              : undefined,
+                        },
                       });
                     }
                   }}

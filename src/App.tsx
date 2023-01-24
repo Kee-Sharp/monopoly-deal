@@ -53,6 +53,7 @@ function App() {
       const { nickname, roomId } = result;
       joinRoom(nickname, roomId, true);
     });
+    return () => unsubscribeRef.current?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clientId]);
 

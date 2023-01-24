@@ -16,7 +16,7 @@ export interface CardProps {
 }
 
 const Card = ({ card, canFlip = true, onFlip, onClick, currentSet, sx }: CardProps) => {
-  const { type, value } = card;
+  const { id, type, value } = card;
   let content: React.ReactNode = null;
   let backgroundColor = "black";
   let otherStyles: React.CSSProperties = {};
@@ -29,7 +29,7 @@ const Card = ({ card, canFlip = true, onFlip, onClick, currentSet, sx }: CardPro
       break;
     }
     case "property": {
-      const { color, stages } = card;
+      const { color, stages, actingColor } = card;
       const isDual = Array.isArray(color);
       let colorToUse: Color;
       let stagesToUse: Extract<TCard, { type: "property" }>["stages"];
@@ -64,9 +64,9 @@ const Card = ({ card, canFlip = true, onFlip, onClick, currentSet, sx }: CardPro
         </Box>
       );
       if (isDual) {
-        colorToUse = color[0];
-        stagesToUse = stagesMap[color[0]];
-        secondValueColor = colorToColor[color[1]];
+        colorToUse = actingColor ?? color[0];
+        stagesToUse = stagesMap[colorToUse];
+        secondValueColor = colorToColor[color.filter(c => c !== colorToUse)[0]];
       } else if (color !== "rainbow") {
         colorToUse = color;
         stagesToUse = stages;
@@ -123,7 +123,7 @@ const Card = ({ card, canFlip = true, onFlip, onClick, currentSet, sx }: CardPro
               paddingX: 1,
               marginBottom: 0.5,
               ...(isDual && {
-                backgroundColor: colorToColor[color[1]],
+                backgroundColor: secondValueColor,
                 marginBottom: 0,
                 marginTop: "-4px",
                 paddingY: 0.5,
@@ -137,6 +137,43 @@ const Card = ({ card, canFlip = true, onFlip, onClick, currentSet, sx }: CardPro
       );
       otherStyles = { justifyContent: "space-between" };
       break;
+    }
+    // @ts-ignore
+    case "rent": {
+      if (Array.isArray(card.color)) {
+        content = (
+          <>
+            <Box />
+            <Box
+              className="perfect-center"
+              sx={{
+                backgroundColor: "white",
+                width: "calc(var(--size) *4/9)",
+                height: "calc(var(--size) *4/9)",
+                borderRadius: "50%",
+                color: "black",
+                fontWeight: "bold",
+                zIndex: 1,
+              }}
+            >
+              RENT
+            </Box>
+            <Box />
+            <Box
+              sx={{
+                position: "absolute",
+                inset: "-24px 0px 0px -24px",
+                transform: "rotate(48deg)",
+                transformOrigin: "left bottom",
+                backgroundColor: colorToColor[card.color[1]],
+              }}
+            />
+          </>
+        );
+        otherStyles = { justifyContent: "space-between" };
+        backgroundColor = colorToColor[card.color[0]];
+        break;
+      }
     }
     default: {
       // @ts-ignore
@@ -152,9 +189,10 @@ const Card = ({ card, canFlip = true, onFlip, onClick, currentSet, sx }: CardPro
         width: "var(--size)",
         height: "calc(1.5 * var(--size))",
         transition: "all 0.2s ease 0s",
+        zIndex: 2,
         ":hover": {
           transform: "scale(1.2)",
-          zIndex: 2,
+          zIndex: 3,
           marginRight: "58px",
           cursor: "grab",
         },

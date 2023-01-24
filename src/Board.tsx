@@ -12,11 +12,20 @@ interface BoardProps {
   onFlip?: (card: TCard, index: number, currentColor: SolidColor) => void;
   sx?: SystemStyleObject<Theme>;
 }
+
+type PropertyCard = Extract<TCard, { type: "property" }>;
 const Board = ({ player, myBoard, isTurn = false, onFlip, sx }: BoardProps) => {
-  const { nickname, displayHex, hand = [], properties = {}, money = [] } = player;
+  const { nickname, displayHex, hand = [], properties = [], money = [] } = player;
   const [showBills, setShowBills] = useState(false);
+  const propertiesMap = properties.reduce((map, property, index) => {
+    const color = property.actingColor ?? (property.color as SolidColor);
+    return {
+      ...map,
+      [color]: [...(map[color] ?? []), { card: property, originalIndex: index }],
+    };
+  }, {} as Record<SolidColor, { card: PropertyCard; originalIndex: number }[]>);
   const highestNumber = colors.reduce((prevHighest, current) => {
-    const colorNumber = properties[current]?.length ?? 0;
+    const colorNumber = propertiesMap[current]?.length ?? 0;
     return colorNumber > prevHighest ? colorNumber : prevHighest;
   }, 0);
   return (
@@ -28,12 +37,12 @@ const Board = ({ player, myBoard, isTurn = false, onFlip, sx }: BoardProps) => {
         borderRadius: 1,
         padding: 2,
         position: "relative",
+        ...(myBoard && !isTurn && { opacity: 0.5 }),
         ...sx,
       }}
     >
       <Dialog
         open={showBills}
-        // scroll="paper"
         disablePortal
         onClose={() => setShowBills(false)}
         sx={{ position: "absolute", bottom: "auto" }}
@@ -104,7 +113,7 @@ const Board = ({ player, myBoard, isTurn = false, onFlip, sx }: BoardProps) => {
         }}
       >
         {colors
-          .filter(color => properties[color]?.length)
+          .filter(color => propertiesMap[color]?.length)
           .map(color => (
             <Box
               key={color}
@@ -112,15 +121,15 @@ const Board = ({ player, myBoard, isTurn = false, onFlip, sx }: BoardProps) => {
                 height: "min-content",
                 transformOrigin: "top left",
                 transition: "all 0.2s ease 0s",
-                ":hover": { transform: "scale(1.2)", zIndex: 2 },
+                ":hover": { transform: "scale(1.2)", zIndex: 4 },
               }}
             >
-              {(properties[color] ?? []).map((card, index) => (
+              {(propertiesMap[color] ?? []).map(({ card, originalIndex }) => (
                 <Card
-                  key={`${color}-card ${card.id}-${index}`}
+                  key={`${color}-card ${card.id}-${originalIndex}`}
                   card={card}
                   canFlip={isTurn}
-                  onFlip={card => onFlip?.(card, index, color)}
+                  onFlip={card => onFlip?.(card, originalIndex, color)}
                   currentSet={color}
                   sx={{
                     ":not(:first-of-type)": {

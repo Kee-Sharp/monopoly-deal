@@ -5,7 +5,7 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background-color: #282c34;
+  background-color: #141414;
   --size: 75px;
 }
 
@@ -62,4 +62,11 @@ code {
   backface-visibility: hidden;
   perspective: 1000px;
   border-color: red !important;
+}
+
+.disabled {
+  pointer-events: none;
+  cursor: default;
+  box-shadow: none;
+  opacity: 0.3;
 }

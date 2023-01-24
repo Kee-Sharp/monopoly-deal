@@ -19,10 +19,16 @@ export type TCard = {
   value: number;
 } & (
   | { type: "action"; title: string; description: string }
-  | { type: "property"; color: Color | [SolidColor, SolidColor]; stages: number[] }
+  | {
+      type: "property";
+      color: Color | [SolidColor, SolidColor];
+      stages: number[];
+      actingColor?: SolidColor;
+    }
   | { type: "money" }
   | { type: "rent"; color: Color | [SolidColor, SolidColor]; description: string }
 );
+type PropertyCard = Extract<TCard, { type: "property" }>;
 
 export interface Player {
   id: string;
@@ -30,10 +36,10 @@ export interface Player {
   /** Used as this player's theme color */
   displayHex: string;
   hand: TCard[];
-  properties: { [color in SolidColor]?: Extract<TCard, { type: "property" }>[] };
+  properties: PropertyCard[];
   money: TCard[];
   movesLeft: number;
-  rentDue?: { playerId: string; amount: number };
+  rentDue: { playerId: string; amount: number } | null;
 }
 export type GameState = {
   players: Player[];
@@ -64,6 +70,19 @@ export type Payloads =
         index: number;
         destinationColor?: SolidColor;
         asMoney?: boolean;
+        amountToCharge?: number;
+        /** If there is a targeted player the rent is just for them,
+         * else charge rent to everyone
+         */
+        targetedPlayerId?: string;
+      }
+    >
+  | PayloadAction<
+      "payRent",
+      {
+        playerId: string;
+        selectedProperties: (TCard | undefined)[];
+        selectedMoney: (TCard | undefined)[];
       }
     >
   | PayloadAction<"flipHandCard", { playerId: string; index: number }>
@@ -72,8 +91,7 @@ export type Payloads =
       {
         playerId: string;
         index: number;
-        color: SolidColor;
-        destinationColor?: SolidColor;
+        destinationColor: SolidColor;
       }
     >
   | PayloadAction<"endTurn", number>;
@@ -89,9 +107,10 @@ const reducer: Reducer<GameState, Payloads> = (state, action) => {
         ...action.payload,
         displayHex: colorToColor[color],
         hand: [],
-        properties: {},
+        properties: [],
         money: [],
         movesLeft: 0,
+        rentDue: null,
       };
       return {
         ...state,
@@ -109,7 +128,7 @@ const reducer: Reducer<GameState, Payloads> = (state, action) => {
       const deck = _.shuffle(
         cards.flatMap(card => Array(defaultCardConfig[card.id]).fill(card))
       );
-      let newDeck = deck.filter(({ type }) => ["money", "property"].includes(type));
+      let newDeck = deck;
       const newPlayers = shuffledPlayers.map((player, index) => {
         let hand;
         [hand, newDeck] = takeFirstN(newDeck, index === 0 ? 7 : 5);
@@ -126,7 +145,14 @@ const reducer: Reducer<GameState, Payloads> = (state, action) => {
     }
     case "playCard": {
       const { players, messages } = state;
-      const { playerId, index, destinationColor, asMoney } = action.payload;
+      const {
+        playerId,
+        index,
+        destinationColor,
+        asMoney,
+        amountToCharge,
+        targetedPlayerId,
+      } = action.payload;
       let newPlayers = players;
       let newMessageContent = "";
       const currentPlayerIndex = players.findIndex(({ id }) => id === playerId);
@@ -135,21 +161,17 @@ const reducer: Reducer<GameState, Payloads> = (state, action) => {
         console.error(`Unable to find player with id: ${playerId}`);
         return state;
       }
-      const { hand, properties = {}, money = [], nickname, movesLeft } = currentPlayer;
+      const { hand, properties = [], money = [], nickname, movesLeft } = currentPlayer;
       if (movesLeft === 0) return state;
       const [newHand, card] = removeFromArray(hand, index);
       let newProperties = properties;
       let newMoney = money;
       switch (card.type) {
         case "property": {
-          let color: SolidColor;
-          if (card.color === "rainbow") {
-            color = destinationColor as SolidColor;
-          } else {
-            color = Array.isArray(card.color) ? card.color[0] : card.color;
-          }
-          const pile = properties[color] ?? [];
-          newProperties[color] = [...pile, card].sort(
+          const newCard = destinationColor
+            ? { ...card, actingColor: destinationColor }
+            : card;
+          newProperties = [...properties, newCard].sort(
             (cardA, cardB) => cardA.id - cardB.id
           );
           newMessageContent = `${nickname} played ${
@@ -164,18 +186,36 @@ const reducer: Reducer<GameState, Payloads> = (state, action) => {
           newMessageContent = `${nickname} played money`;
           break;
         }
+        // @ts-ignore
         case "action": {
-          if (asMoney) {
-            newMoney = [...money, card];
+          if (!asMoney && !amountToCharge) {
+            // do the action
             break;
           }
-          break;
+          // fall through to the rent case
         }
         case "rent": {
           if (asMoney) {
             newMoney = [...money, card];
             break;
-          }
+          } else if (amountToCharge) {
+            newPlayers = newPlayers.map(player => {
+              let rentDue: Player["rentDue"] = null;
+              if (
+                player.id === targetedPlayerId ||
+                (!targetedPlayerId && player.id !== playerId)
+              ) {
+                rentDue = { playerId, amount: amountToCharge };
+              }
+              return { ...player, rentDue };
+            });
+            newMessageContent = `${nickname} charged rent to ${
+              targetedPlayerId
+                ? players.find(({ id }) => id === targetedPlayerId)?.nickname ??
+                  targetedPlayerId
+                : "everyone"
+            }`;
+          } else return state;
         }
       }
       const newPlayer: Player = {
@@ -191,6 +231,58 @@ const reducer: Reducer<GameState, Payloads> = (state, action) => {
         players: newPlayers,
         messages: [...messages, { id: "game", content: newMessageContent }],
       };
+    }
+    case "payRent": {
+      const { players, messages } = state;
+      const { playerId, selectedProperties, selectedMoney } = action.payload;
+      const currentPlayerIndex = players.findIndex(({ id }) => id === playerId);
+      const currentPlayer = players[currentPlayerIndex];
+      if (!currentPlayer || !currentPlayer.rentDue) {
+        console.error(`Unable to find player that has rent due with id: ${playerId}`);
+        return state;
+      }
+      const { properties = [], money = [] } = currentPlayer;
+      const playerChargingRentIndex = players.findIndex(
+        ({ id }) => id === currentPlayer.rentDue?.playerId
+      );
+      const {
+        properties: chargingRentProperties = [],
+        money: chargingRentMoney = [],
+        ...rest
+      } = players[playerChargingRentIndex];
+
+      const [remainingProperties, sendingProperties] = properties.reduce<
+        [PropertyCard[], PropertyCard[]]
+      >(
+        ([remainingAcc, sendingAcc], property, index) =>
+          selectedProperties[index]
+            ? [remainingAcc, [...sendingAcc, property]]
+            : [[...remainingAcc, property], sendingAcc],
+        [[], []]
+      );
+      const [remainingMoney, sendingMoney] = money.reduce<[TCard[], TCard[]]>(
+        ([remainingAcc, sendingAcc], bill, index) =>
+          selectedMoney[index]
+            ? [remainingAcc, [...sendingAcc, bill]]
+            : [[...remainingAcc, bill], sendingAcc],
+        [[], []]
+      );
+      let newPlayers = setValueInArray(players, currentPlayerIndex, {
+        ...currentPlayer,
+        properties: remainingProperties,
+        money: remainingMoney,
+        rentDue: null,
+      });
+      const newPropertiesForPlayerChargingRent = [
+        ...chargingRentProperties,
+        ...sendingProperties,
+      ].sort((cardA, cardB) => cardA.id - cardB.id);
+      newPlayers = setValueInArray(newPlayers, playerChargingRentIndex, {
+        ...rest,
+        properties: newPropertiesForPlayerChargingRent,
+        money: [...chargingRentMoney, ...sendingMoney],
+      });
+      return { ...state, players: newPlayers, messages };
     }
     case "flipHandCard": {
       const { players } = state;
@@ -223,40 +315,16 @@ const reducer: Reducer<GameState, Payloads> = (state, action) => {
     }
     case "flipPropertyCard": {
       const { players, messages } = state;
-      const { playerId, index, color, destinationColor } = action.payload;
+      const { playerId, index, destinationColor } = action.payload;
       const currentPlayerIndex = players.findIndex(({ id }) => id === playerId);
       const currentPlayer = players[currentPlayerIndex];
       if (!currentPlayer) {
         console.error(`Unable to find player with id: ${playerId}`);
         return state;
       }
-      const { properties = {}, nickname } = currentPlayer;
-      const pile = properties[color] ?? [];
-      const [newPileOldColor, card] = removeFromArray(pile, index);
-      let newColor;
-      if (Array.isArray(card.color)) {
-        newColor = card.color[1];
-      } else if (card.color === "rainbow") {
-        newColor = destinationColor!;
-      } else {
-        console.error(`Card at index ${index} is not a wildcard`);
-        return state;
-      }
-      if (newColor === color) return state;
-      let newPileNewColor = properties[newColor] ?? [];
-      newPileNewColor = [
-        ...newPileNewColor,
-        {
-          ...card,
-          color: Array.isArray(card.color) ? [card.color[1], card.color[0]] : "rainbow",
-        },
-      ];
-      newPileNewColor.sort((cardA, cardB) => cardA.id - cardB.id);
-      const newProperties = {
-        ...properties,
-        [color]: newPileOldColor,
-        [newColor]: newPileNewColor,
-      };
+      const { properties, nickname } = currentPlayer;
+      const newProperties = [...properties];
+      newProperties[index] = { ...properties[index], actingColor: destinationColor };
       const newPlayers = setValueInArray(players, currentPlayerIndex, {
         ...currentPlayer,
         properties: newProperties,
