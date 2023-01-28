@@ -59,34 +59,76 @@
     "value": 1,
     "description": "Charges other players rent of either color"
   },
-  { "id": 24, "type": "action", "title": "Deal Breaker", "value": 5, "description": "" },
-  { "id": 25, "type": "action", "title": "Just Say No", "value": 3, "description": "" },
-  { "id": 26, "type": "action", "title": "Sly Deal", "value": 1, "description": "" },
-  { "id": 27, "type": "action", "title": "Forced Deal", "value": 3, "description": "" },
+  {
+    "id": 24,
+    "type": "action",
+    "title": "Deal Breaker",
+    "value": 5,
+    "description": "Steal a complete set of properties"
+  },
+  {
+    "id": 25,
+    "type": "action",
+    "title": "Just Say No",
+    "value": 3,
+    "description": "Use when an action is played against you"
+  },
+  {
+    "id": 26,
+    "type": "action",
+    "title": "Sly Deal",
+    "value": 1,
+    "description": "Steal a non-full-set property"
+  },
+  {
+    "id": 27,
+    "type": "action",
+    "title": "Forced Deal",
+    "value": 3,
+    "description": "Swap any property with another"
+  },
   {
     "id": 28,
     "type": "action",
     "title": "Debt Collector",
     "value": 3,
-    "description": ""
+    "description": "Force any player to pay you 5M"
   },
-  { "id": 29, "type": "action", "title": "Hotel", "value": 4, "description": "" },
-  { "id": 30, "type": "action", "title": "House", "value": 3, "description": "" },
+  {
+    "id": 29,
+    "type": "action",
+    "title": "Hotel",
+    "value": 4,
+    "description": "Add to a full set to add 4M in rent value"
+  },
+  {
+    "id": 30,
+    "type": "action",
+    "title": "House",
+    "value": 3,
+    "description": "Add to a full set to add 3M in rent value"
+  },
   {
     "id": 31,
     "type": "action",
     "title": "It's My Birthday!",
     "value": 2,
-    "description": ""
+    "description": "All players give you 2M as a gift"
   },
   {
     "id": 32,
     "type": "action",
     "title": "Double The Rent",
     "value": 1,
-    "description": ""
+    "description": "Charge double the rent on the next rent card this turn"
   },
-  { "id": 33, "type": "action", "title": "Pass Go", "value": 1, "description": "" },
+  {
+    "id": 33,
+    "type": "action",
+    "title": "Pass Go",
+    "value": 1,
+    "description": "Draw 2 extra cards"
+  },
   { "id": 34, "type": "money", "value": 10 },
   { "id": 35, "type": "money", "value": 5 },
   { "id": 36, "type": "money", "value": 4 },

@@ -1,17 +1,10 @@
 import { initializeApp } from "firebase/app";
-import {
-  child,
-  get,
-  getDatabase,
-  onValue,
-  push,
-  ref,
-  runTransaction,
-} from "firebase/database";
+import { child, get, getDatabase, onValue, push, ref, runTransaction } from "firebase/database";
 import { useLayoutEffect, useRef, useState } from "react";
 import Game from "./Game";
 import gameReducer, { GameState, init, Payloads } from "./gameReducer";
 import StartScreen from "./StartScreen";
+import WaitingRoom from "./WaitingRoom";
 
 const firebaseConfig = {
   apiKey: process.env.REACT_APP_API_KEY,
@@ -103,12 +96,17 @@ function App() {
   };
 
   const hasJoinedRoom = !!gameState.players.find(({ id }) => id === clientId);
+  if (!hasJoinedRoom) return <StartScreen onCreateGame={createRoom} onJoinGame={joinRoom} />;
+  if (!gameState.gameStarted)
+    return (
+      <WaitingRoom
+        roomId={roomId}
+        players={gameState.players}
+        onStart={() => dispatch({ type: "startGame" })}
+      />
+    );
 
-  return hasJoinedRoom ? (
-    <Game clientId={clientId} roomId={roomId} gameState={gameState} dispatch={dispatch} />
-  ) : (
-    <StartScreen onCreateGame={createRoom} onJoinGame={joinRoom} />
-  );
+  return <Game clientId={clientId} gameState={gameState} dispatch={dispatch} />;
 }
 
 const generateClientId = () => {

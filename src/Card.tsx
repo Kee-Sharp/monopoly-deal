@@ -13,10 +13,11 @@ export interface CardProps {
   /** Used for when the card is a rainbow */
   currentSet?: SolidColor;
   sx?: SystemStyleObject<Theme>;
+  selected?: boolean;
 }
 
-const Card = ({ card, canFlip = true, onFlip, onClick, currentSet, sx }: CardProps) => {
-  const { id, type, value } = card;
+const Card = ({ card, canFlip = true, onFlip, onClick, currentSet, sx, selected }: CardProps) => {
+  const { type, value } = card;
   let content: React.ReactNode = null;
   let backgroundColor = "black";
   let otherStyles: React.CSSProperties = {};
@@ -77,7 +78,14 @@ const Card = ({ card, canFlip = true, onFlip, onClick, currentSet, sx }: CardPro
         content = (
           <>
             {currentSet && reverseCircle}
-            <Typography sx={{ lineHeight: "normal", marginTop: 3, fontWeight: "medium" }}>
+            <Typography
+              sx={{
+                lineHeight: "normal",
+                marginTop: 3,
+                fontWeight: "medium",
+                fontSize: 14,
+              }}
+            >
               Rainbow Wildcard
             </Typography>
           </>
@@ -92,9 +100,7 @@ const Card = ({ card, canFlip = true, onFlip, onClick, currentSet, sx }: CardPro
       content = (
         <>
           {isDual && reverseCircle}
-          <Typography
-            sx={{ backgroundColor: "rgba(0,0,0,0.3)", fontSize: 6, padding: "2px 4px" }}
-          >
+          <Typography sx={{ backgroundColor: "rgba(0,0,0,0.3)", fontSize: 6, padding: "2px 4px" }}>
             {colorToUse.replace("_", " ")}
           </Typography>
           <Box width="100%">
@@ -140,25 +146,25 @@ const Card = ({ card, canFlip = true, onFlip, onClick, currentSet, sx }: CardPro
     }
     // @ts-ignore
     case "rent": {
-      if (Array.isArray(card.color)) {
-        content = (
-          <>
-            <Box />
-            <Box
-              className="perfect-center"
-              sx={{
-                backgroundColor: "white",
-                width: "calc(var(--size) *4/9)",
-                height: "calc(var(--size) *4/9)",
-                borderRadius: "50%",
-                color: "black",
-                fontWeight: "bold",
-                zIndex: 1,
-              }}
-            >
-              RENT
-            </Box>
-            <Box />
+      content = (
+        <>
+          <Box />
+          <Box
+            className="perfect-center"
+            sx={{
+              backgroundColor: "white",
+              width: "calc(var(--size) *4/9)",
+              height: "calc(var(--size) *4/9)",
+              borderRadius: "50%",
+              color: "black",
+              fontWeight: "bold",
+              zIndex: 1,
+            }}
+          >
+            RENT
+          </Box>
+          <Box />
+          {Array.isArray(card.color) && (
             <Box
               sx={{
                 position: "absolute",
@@ -168,12 +174,15 @@ const Card = ({ card, canFlip = true, onFlip, onClick, currentSet, sx }: CardPro
                 backgroundColor: colorToColor[card.color[1]],
               }}
             />
-          </>
-        );
-        otherStyles = { justifyContent: "space-between" };
-        backgroundColor = colorToColor[card.color[0]];
-        break;
-      }
+          )}
+        </>
+      );
+      otherStyles = {
+        justifyContent: "space-between",
+        ...(card.color === "rainbow" && { backgroundImage: rainbowBackground }),
+      };
+      backgroundColor = Array.isArray(card.color) ? colorToColor[card.color[0]] : "black";
+      break;
     }
     default: {
       // @ts-ignore
@@ -182,8 +191,9 @@ const Card = ({ card, canFlip = true, onFlip, onClick, currentSet, sx }: CardPro
   }
   return (
     <Box
+      className={selected ? "selected" : ""}
       sx={{
-        boxShadow: theme => `0 0 0 1px ${theme.palette.grey[800]}`,
+        boxShadow: theme => `0 0 0 1px ${theme.palette.grey[900]}99`,
         position: "relative",
         borderRadius: 2,
         width: "var(--size)",

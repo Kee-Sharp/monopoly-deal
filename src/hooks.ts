@@ -1,15 +1,15 @@
 import { useState } from "react";
 
-export const useToggle = <T = boolean>(initialState: T[] = []) => {
-  const [arr, setArray] = useState<(T | undefined)[]>(initialState);
-  const toggle = (index: number, value?: T) => {
+export const useToggle = (initialState: any[] = []) => {
+  const [arr, setArray] = useState(initialState);
+  const toggle = (index: number, value?: any) => {
     const newArr = [...arr];
     if (value) {
       newArr[index] = !!arr[index] ? undefined : value;
     } else {
-      newArr[index] = !arr[index] as T;
+      newArr[index] = !arr[index];
     }
     setArray(newArr);
   };
-  return [arr, toggle] as const;
+  return [arr, toggle, setArray] as const;
 };

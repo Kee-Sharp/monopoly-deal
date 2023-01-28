@@ -70,3 +70,12 @@ code {
   box-shadow: none;
   opacity: 0.3;
 }
+
+.selected::after {
+  content: '';
+  background-color: rgb(33,173,153);
+  opacity: 0.8;
+  position: absolute;
+  inset: 0px;
+  z-index: 4;
+}

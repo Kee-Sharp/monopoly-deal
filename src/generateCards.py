@@ -1,8 +1,8 @@
 import json
 
 def main():
-    actionConfig = [("Deal Breaker", 5), ("Just Say No", 3), ("Sly Deal", 1), ("Forced Deal", 3), ("Debt Collector", 3), ("Hotel", 4), ("House", 3), ("It's My Birthday!", 2), ("Double The Rent", 1), ("Pass Go", 1)]
-    actionCards = [{ 'type': 'action', 'title': title, 'value': value, 'description': '' } for title, value in actionConfig]
+    actionConfig = [("Deal Breaker", 5, 'Steal a complete set of properties'), ("Just Say No", 3, 'Use when an action is played against you'), ("Sly Deal", 1, 'Steal a non-full-set property'), ("Forced Deal", 3, 'Swap any property with another'), ("Debt Collector", 3, 'Force any player to pay you 5M'), ("Hotel", 4, 'Add to a full set to add 4M in rent value'), ("House", 3, 'Add to a full set to add 3M in rent value'), ("It's My Birthday!", 2, 'All players give you 2M as a gift'), ("Double The Rent", 1, 'Charge double the rent on the next rent card this turn'), ("Pass Go", 1, 'Draw 2 extra cards')]
+    actionCards = [{ 'type': 'action', 'title': title, 'value': value, 'description': description } for title, value, description in actionConfig]
     moneyConfig = [10, 5, 4, 3, 2, 1]
     moneyCards = [{ 'type': 'money', 'value': v } for v in moneyConfig]
     rentConfig = [('rainbow', 3), (['blue', 'green'], 1), (['yellow', 'red'], 1), (['orange', 'pink'], 1), (['black', 'light_green'], 1), (['light_blue', 'brown'], 1)]

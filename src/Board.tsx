@@ -1,4 +1,4 @@
-import { colors, Player, SolidColor, TCard } from "./gameReducer";
+import { colors, Player, SolidColor, TCard, PropertyCard } from "./gameReducer";
 import { Box, Dialog, Typography } from "@mui/material";
 import { SystemStyleObject } from "@mui/system";
 import { Theme } from "@mui/material";
@@ -10,12 +10,19 @@ interface BoardProps {
   myBoard?: boolean;
   isTurn?: boolean;
   onFlip?: (card: TCard, index: number, currentColor: SolidColor) => void;
+  onClick?: (player: Player) => void;
   sx?: SystemStyleObject<Theme>;
 }
 
-type PropertyCard = Extract<TCard, { type: "property" }>;
-const Board = ({ player, myBoard, isTurn = false, onFlip, sx }: BoardProps) => {
-  const { nickname, displayHex, hand = [], properties = [], money = [] } = player;
+const Board = ({ player, myBoard, isTurn = false, onFlip, onClick, sx }: BoardProps) => {
+  const {
+    nickname,
+    displayHex,
+    hand = [],
+    properties = [],
+    money = [],
+    setModifiers = {},
+  } = player;
   const [showBills, setShowBills] = useState(false);
   const propertiesMap = properties.reduce((map, property, index) => {
     const color = property.actingColor ?? (property.color as SolidColor);
@@ -30,6 +37,7 @@ const Board = ({ player, myBoard, isTurn = false, onFlip, sx }: BoardProps) => {
   }, 0);
   return (
     <Box
+      onClick={() => onClick?.(player)}
       sx={{
         backgroundColor: "black",
         border: "4px solid",
@@ -60,9 +68,7 @@ const Board = ({ player, myBoard, isTurn = false, onFlip, sx }: BoardProps) => {
             paddingY: 1,
           }}
         >
-          <Typography
-            sx={{ color: "white", fontSize: 8 }}
-          >{`${nickname}'s money`}</Typography>
+          <Typography sx={{ color: "white", fontSize: 8 }}>{`${nickname}'s money`}</Typography>
           <Box
             className="custom-scrollbar"
             sx={{ display: "flex", marginTop: 1, overflowX: "auto", width: "100%" }}
@@ -135,6 +141,17 @@ const Board = ({ player, myBoard, isTurn = false, onFlip, sx }: BoardProps) => {
                     ":not(:first-of-type)": {
                       marginTop: "calc(-1.5 * var(--size) * 0.82)",
                     },
+                    ":hover": {},
+                    ...((!myBoard || !isTurn) && { cursor: "default" }),
+                  }}
+                />
+              ))}
+              {(setModifiers[color] ?? []).map((card, index) => (
+                <Card
+                  key={`${color}-modifier ${index}`}
+                  card={card}
+                  sx={{
+                    marginTop: "calc(-1.5 * var(--size) * 0.82)",
                     ":hover": {},
                     ...((!myBoard || !isTurn) && { cursor: "default" }),
                   }}

@@ -1,14 +1,16 @@
 import { useState, useEffect, useRef } from "react";
-import { colors, GameState, Payloads, Player, SolidColor, TCard } from "./gameReducer";
+import { GameState, Payloads, Player, SolidColor, TCard } from "./gameReducer";
 import { Box, Button, Dialog, Divider, Typography } from "@mui/material";
 import Card from "./Card";
 import { colorToColor, stagesMap } from "./constants";
 import Board from "./Board";
 import { useToggle } from "./hooks";
+import { createPropertyMap } from "./utils";
+import ChooseCards, { ChooseCardsProps } from "./ChooseCards";
+import ColoredText from "./ColoredText";
 
 interface GameProps {
   clientId: string;
-  roomId: string;
   gameState: GameState;
   dispatch: (payload: Payloads) => Promise<void>;
 }
@@ -17,18 +19,26 @@ interface ColorOptions {
   amountInSet: number;
 }
 
-const Game = ({ clientId, roomId, gameState, dispatch }: GameProps) => {
+const Game = ({ clientId, gameState, dispatch }: GameProps) => {
   const { players, messages, gameStarted } = gameState;
-
-  const [copied, setCopied] = useState(false);
 
   const [chooseColorOptions, setChooseColorOptions] = useState<{
     colorOptions: ColorOptions[];
     isRent?: boolean;
     onChoose: (color: SolidColor) => void;
   }>();
-  const [selectedProperties, toggleSelectedProperties] = useToggle<TCard>();
-  const [selectedMoney, toggleSelectedMoney] = useToggle<TCard>();
+  const [selectedProperties, toggleSelectedProperties, setSelectedProperties] = useToggle();
+  /** Other cards can be other properties or our own money */
+  const [selectedOtherCards, toggleSelectedOtherCards, setSelectedOtherCards] = useToggle();
+  const [choosePlayer, setChoosePlayer] = useState<{
+    onChoose: (targetedPlayerId: string) => void;
+  }>();
+  const [chooseCards, setChooseCards] = useState<ChooseCardsProps>();
+
+  const [chooseActionOrMoney, setChooseActionOrMoney] = useState<{
+    action: () => void;
+    money: () => void;
+  }>();
 
   const [scrolled, setScrolled] = useState(false);
   const cardContainerRef = useRef<HTMLDivElement>(null);
@@ -44,7 +54,7 @@ const Game = ({ clientId, roomId, gameState, dispatch }: GameProps) => {
     };
     cardContainer?.addEventListener("scroll", handleScroll);
     return () => cardContainer?.removeEventListener("scroll", handleScroll);
-  });
+  }, []);
 
   const playersMap = players.reduce<Record<string, Player>>(
     (map, player) => ({ ...map, [player.id]: player }),
@@ -52,64 +62,7 @@ const Game = ({ clientId, roomId, gameState, dispatch }: GameProps) => {
   );
 
   const thisPlayer = playersMap[clientId];
-  if (!thisPlayer) return <></>;
-
-  if (!gameStarted) {
-    return (
-      <Box
-        sx={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "flex-start",
-          margin: 4,
-        }}
-      >
-        <Box sx={{ display: "flex", marginBottom: 4, alignItems: "center" }}>
-          <Typography sx={{ color: "white" }}>code:</Typography>
-          <Typography
-            sx={{
-              backgroundColor: "grey.900",
-              border: "2px solid",
-              borderColor: "primary.main",
-              borderRadius: 2,
-              padding: 1,
-              color: "primary.main",
-              position: "relative",
-              marginLeft: 2,
-              cursor: "pointer",
-            }}
-            onClick={() => {
-              navigator.clipboard.writeText(roomId);
-              setCopied(true);
-            }}
-          >
-            {roomId}
-            <Typography
-              sx={{ position: "absolute", fontSize: 10, right: 0, top: -16 }}
-              component="span"
-              color={copied ? "primary.main" : "white"}
-            >
-              {copied ? "copied!" : "click to copy"}
-            </Typography>
-          </Typography>
-        </Box>
-        <Typography color="white">Friends who have joined</Typography>
-        {players.map(({ id, displayHex, nickname }) => (
-          <Typography key={id} sx={{ color: displayHex }}>
-            {nickname}
-          </Typography>
-        ))}
-        <Button
-          variant="contained"
-          onClick={() => dispatch({ type: "startGame" })}
-          sx={{ marginTop: 4 }}
-          disabled={players.length <= 1}
-        >
-          Start Game
-        </Button>
-      </Box>
-    );
-  }
+  if (!thisPlayer || !gameStarted) return <></>;
 
   const {
     id,
@@ -118,20 +71,17 @@ const Game = ({ clientId, roomId, gameState, dispatch }: GameProps) => {
     money = [],
     movesLeft: thisPlayerMovesLeft,
     rentDue,
+    setModifiers,
+    fullSets,
   } = thisPlayer;
 
-  const propertiesMap = properties.reduce((map, property) => {
-    const color = property.actingColor ?? (property.color as SolidColor);
-    return { ...map, [color]: [...(map[color] ?? []), property] };
-  }, {} as Record<SolidColor, Player["properties"][number][]>);
+  const propertiesMap = createPropertyMap(properties);
   const allColorOptions = Object.entries(propertiesMap).map<ColorOptions>(
     ([color, { length }]) => ({ color: color as SolidColor, amountInSet: length })
   );
 
   const otherPlayers = players.filter(({ id }) => id !== clientId);
-  const currentPlayerIndex = players.findIndex(
-    ({ id }) => id === gameState.currentPlayerId
-  );
+  const currentPlayerIndex = players.findIndex(({ id }) => id === gameState.currentPlayerId);
   const {
     id: currentPlayerId,
     nickname: currentPlayerNickname,
@@ -144,164 +94,308 @@ const Game = ({ clientId, roomId, gameState, dispatch }: GameProps) => {
   const nextPlayer = players[(currentPlayerIndex + 1) % players.length];
   const playersWithRent = players.filter(({ rentDue }) => !!rentDue);
   const playerChargingRentId = playersWithRent[0]?.rentDue?.playerId;
-  const playerChargingRent = playerChargingRentId
-    ? playersMap[playerChargingRentId]
-    : undefined;
-  const totalSelected = [...selectedMoney, ...selectedProperties].reduce(
+  const playerChargingRent = playerChargingRentId ? playersMap[playerChargingRentId] : undefined;
+  const totalSelected = [...selectedOtherCards, ...selectedProperties].reduce(
     (total, card) => total + (card?.value ?? 0),
     0
   );
-  const isBroke = properties.length === 0 && money.length === 0;
   const allSelected = [properties, money].every((arr, isMoney) =>
-    arr.every((_, index) => (isMoney ? selectedMoney[index] : selectedProperties[index]))
+    arr.every((_, index) => (isMoney ? selectedOtherCards[index] : selectedProperties[index]))
   );
-  const canPayRent = totalSelected >= (rentDue?.amount ?? 0) || isBroke || allSelected;
+  const canPayRent = totalSelected >= (rentDue?.amount ?? 0) || allSelected;
+
+  const closeChooseCards = () => {
+    setChooseCards(undefined);
+    setSelectedProperties([]);
+    setSelectedOtherCards([]);
+  };
+
+  //  eslint-disable-next-line react-hooks/rules-of-hooks
+  useEffect(() => {
+    if (rentDue) {
+      setChooseCards({
+        player: thisPlayer,
+        title: (
+          <>
+            {/* <Typography sx={{ color: "white" }}>
+              You owe{" "}
+              <span style={{ color: playerChargingRent?.displayHex }}>{rentDue.amount}M</span> in
+              rent to{" "}
+              <span style={{ color: playerChargingRent?.displayHex }}>
+                {playerChargingRent?.nickname}
+              </span>
+            </Typography> */}
+            <ColoredText
+              sentence={`You owe ${rentDue.amount}M in rent to ${playerChargingRent?.nickname}`}
+              coloredWords={[`${rentDue.amount}M`, playerChargingRent?.nickname ?? ""]}
+              color={playerChargingRent?.displayHex ?? "primary.main"}
+            />
+            <Box
+              className="perfect-center"
+              sx={{
+                width: "40px",
+                height: "40px",
+                borderRadius: "50%",
+                backgroundColor: canPayRent ? "lightgreen" : "coral",
+                color: canPayRent ? "black" : "white",
+                fontWeight: "medium",
+                fontSize: 12,
+              }}
+            >
+              {totalSelected}M
+            </Box>
+          </>
+        ),
+        onClickProperty: (property, index) => toggleSelectedProperties(index, property),
+        otherCards: money,
+        onClickOtherCard: (moneyCard, index) => toggleSelectedOtherCards(index, moneyCard),
+        isSet: false,
+        primaryAction: {
+          label: "Pay Rent",
+          action: () => {
+            dispatch({
+              type: "payRent",
+              payload: { playerId: id, selectedProperties, selectedMoney: selectedOtherCards },
+            });
+            closeChooseCards();
+          },
+          disabled: !canPayRent,
+        },
+        secondaryAction: {
+          label: "Use Just Say No!",
+          action: () => {
+            closeChooseCards();
+          },
+          disabled: true,
+        },
+        skipFullSetFilter: true,
+        borderColor: playerChargingRent?.displayHex,
+      });
+    } else {
+      setChooseCards(undefined);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rentDue, totalSelected, canPayRent]);
+
+  const playActionOrRentCard = (card: TCard, index: number) => {
+    const playCard = (
+      otherOptions: Partial<Extract<Payloads, { type: "playCard" }>["payload"]> = {}
+    ) => {
+      dispatch({ type: "playCard", payload: { playerId: id, index, ...otherOptions } });
+    };
+    if (card.type === "rent") {
+      const playRentCard = (targetedPlayerId?: string) => (color: SolidColor) => {
+        const amountOfPropertiesInSet = (propertiesMap[color] ?? []).length;
+        const modifiersForColor = fullSets[color]
+          ? setModifiers[color]?.reduce((total, { value }) => total + value, 0) ?? 0
+          : 0;
+        const amountToCharge = amountOfPropertiesInSet
+          ? stagesMap[color][Math.min(amountOfPropertiesInSet - 1, stagesMap[color].length - 1)] +
+            modifiersForColor
+          : 0;
+        playCard({
+          amountToCharge,
+          targetedPlayerId,
+        });
+      };
+      if (Array.isArray(card.color)) {
+        const options = card.color.reduce<ColorOptions[]>(
+          (acc, color) => [...acc, { color, amountInSet: propertiesMap[color]?.length ?? 0 }],
+          []
+        );
+        setChooseColorOptions({
+          colorOptions: options,
+          isRent: true,
+          onChoose: playRentCard(),
+        });
+      } else {
+        setChoosePlayer({
+          onChoose: playerId => {
+            setChooseColorOptions({
+              colorOptions: allColorOptions,
+              isRent: true,
+              onChoose: playRentCard(playerId),
+            });
+          },
+        });
+      }
+    } else {
+      switch (card.id) {
+        // deal breaker
+        case 24:
+          setChoosePlayer({
+            onChoose: targetedPlayerId => {
+              const targetedPlayer = playersMap[targetedPlayerId];
+              setChooseCards({
+                player: targetedPlayer,
+                title: (
+                  <ColoredText
+                    sentence="Click one full set in order to steal"
+                    coloredWords={["full set", "steal"]}
+                    color={targetedPlayer.displayHex}
+                  />
+                ),
+                //   title: (<Typography sx={{ color: "white" }}>
+                //   Click one{" "}
+                //   <span style={{ color: targetedPlayer.displayHex }}>
+                //     full set
+                //   </span>{" "}
+                //   in order to{" "}
+                //   <span style={{ color: targetedPlayer.displayHex }}>
+                //     steal
+                //   </span>
+                // </Typography>),
+                onChoose: color => {
+                  playCard({ targetedPlayerId, destinationColor: color });
+                  closeChooseCards();
+                },
+                isSet: true,
+                secondaryAction: {
+                  label: "Undo",
+                  action: closeChooseCards,
+                },
+              });
+            },
+          });
+          break;
+        // sly deal
+        case 26:
+          setChoosePlayer({
+            onChoose: targetedPlayerId => {
+              const targetedPlayer = playersMap[targetedPlayerId];
+              setChooseCards({
+                player: targetedPlayer,
+                title: (
+                  <ColoredText
+                    sentence={`Select one of ${targetedPlayer.nickname}'s cards to take`}
+                    coloredWords={[`${targetedPlayer.nickname}'s`]}
+                    color={targetedPlayer.displayHex}
+                  />
+                ),
+                onClickProperty: (_, index) => {
+                  const newArray = [];
+                  newArray[index] = true;
+                  setSelectedProperties(newArray);
+                },
+                isSet: false,
+                primaryAction: {
+                  label: "Take Card",
+                  action: selectedProperties => {
+                    const targetedIndex = selectedProperties.findIndex(val => val);
+                    playCard({ targetedPlayerId, targetedIndex });
+                    closeChooseCards();
+                  },
+                },
+                secondaryAction: {
+                  label: "Undo",
+                  action: closeChooseCards,
+                },
+              });
+            },
+          });
+          break;
+        // forced deal
+        case 27:
+          setChoosePlayer({
+            onChoose: targetedPlayerId => {
+              const targetedPlayer = playersMap[targetedPlayerId];
+              setChooseCards({
+                player: targetedPlayer,
+                title: (
+                  <ColoredText
+                    sentence={`Select one of ${targetedPlayer.nickname}'s cards to take`}
+                    coloredWords={[`${targetedPlayer.nickname}'s`]}
+                    color={targetedPlayer.displayHex}
+                  />
+                ),
+                onClickProperty: (_, index) => {
+                  const newArray = [];
+                  newArray[index] = true;
+                  setSelectedProperties(newArray);
+                },
+                otherTitle: (
+                  <ColoredText
+                    sentence="Select one of Your cards to give"
+                    coloredWords={["Your"]}
+                    color={targetedPlayer.displayHex}
+                  />
+                ),
+                otherCards: properties,
+                onClickOtherCard: (_, index) => {
+                  const newArray = [];
+                  newArray[index] = true;
+                  setSelectedOtherCards(newArray);
+                },
+                isSet: false,
+                primaryAction: {
+                  label: "Swap",
+                  action: (selectedProperties, selectedOtherCards) => {
+                    const targetedIndex = selectedProperties.findIndex(val => val);
+                    const ownIndex = selectedOtherCards.findIndex(val => val);
+                    playCard({ targetedPlayerId, targetedIndex, ownIndex });
+                    closeChooseCards();
+                  },
+                },
+                secondaryAction: {
+                  label: "Undo",
+                  action: closeChooseCards,
+                },
+              });
+            },
+          });
+          break;
+        case 28:
+          setChoosePlayer({
+            onChoose: targetedPlayerId => playCard({ targetedPlayerId }),
+          });
+          break;
+        case 29:
+        case 30:
+          setChooseCards({
+            player: thisPlayer,
+            title: (
+              <Typography color="white">{`Choose a set to add this ${
+                card.id === 30 ? "House" : "Hotel"
+              } to`}</Typography>
+            ),
+            //   title: (<Typography sx={{ color: "white" }}>
+            //   Click one{" "}
+            //   <span style={{ color: targetedPlayer.displayHex }}>
+            //     full set
+            //   </span>{" "}
+            //   in order to{" "}
+            //   <span style={{ color: targetedPlayer.displayHex }}>
+            //     steal
+            //   </span>
+            // </Typography>),
+            secondaryAction: {
+              label: "Undo",
+              action: closeChooseCards,
+            },
+            onChoose: color => {
+              playCard({ destinationColor: color });
+              setChooseCards(undefined);
+            },
+            isSet: true,
+          });
+          break;
+        default:
+          playCard();
+      }
+    }
+  };
 
   return (
     <Box padding={4} paddingTop={2}>
-      {rentDue && (
-        <Dialog open sx={{ ".MuiPaper-root": { backgroundColor: "grey.900" } }}>
-          <Box
-            sx={{
-              padding: 2,
-              borderRadius: 2,
-              backgroundColor: "grey.900",
-              border: `2px solid ${playerChargingRent?.displayHex}`,
-            }}
-          >
-            <Box
-              sx={{
-                width: "100%",
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                marginBottom: 2,
-                gap: 1,
-              }}
-            >
-              <Typography sx={{ color: "white" }}>
-                You owe{" "}
-                <span style={{ color: playerChargingRent?.displayHex }}>
-                  {rentDue.amount}M
-                </span>{" "}
-                in rent to{" "}
-                <span style={{ color: playerChargingRent?.displayHex }}>
-                  {playerChargingRent?.nickname}
-                </span>
-              </Typography>
-              <Box
-                className="perfect-center"
-                sx={{
-                  width: "40px",
-                  height: "40px",
-                  borderRadius: "50%",
-                  backgroundColor: canPayRent ? "lightgreen" : "coral",
-                  color: canPayRent ? "black" : "white",
-                  fontWeight: "medium",
-                  fontSize: 12,
-                }}
-              >
-                {totalSelected}M
-              </Box>
-            </Box>
-            <Box
-              className="custom-scrollbar"
-              sx={{ display: "flex", overflowX: "auto", gap: 0.5 }}
-            >
-              {properties.map((property, index) => (
-                <Card
-                  key={`property-${index}`}
-                  card={property}
-                  canFlip={false}
-                  onClick={() => toggleSelectedProperties(index, property)}
-                  sx={{
-                    flexShrink: 0,
-                    zoom: 0.9,
-                    ":hover": {},
-                    ...(!!selectedProperties[index] && {
-                      color: "red",
-                      "&::after": {
-                        content: "''",
-                        backgroundColor: "rgb(33,173,153)",
-                        opacity: "0.8",
-                        position: "absolute",
-                        inset: "0px",
-                        zIndex: 4,
-                      },
-                    }),
-                  }}
-                />
-              ))}
-            </Box>
-            <Box
-              className="custom-scrollbar"
-              sx={{ display: "flex", overflowX: "auto", gap: 0.5, marginY: 1 }}
-            >
-              {money.map((moneyCard, index) => (
-                <Card
-                  key={`moneyCard-${index}`}
-                  card={moneyCard}
-                  canFlip={false}
-                  onClick={() => toggleSelectedMoney(index, moneyCard)}
-                  sx={{
-                    flexShrink: 0,
-                    zoom: 0.9,
-                    ":hover": {},
-                    ...(!!selectedMoney[index] && {
-                      "&::after": {
-                        content: "''",
-                        backgroundColor: "rgb(33,173,153)",
-                        opacity: "0.8",
-                        position: "absolute",
-                        inset: "0px",
-                        zIndex: 4,
-                      },
-                    }),
-                  }}
-                />
-              ))}
-            </Box>
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-around",
-                paddingTop: 2,
-                gap: 0.5,
-              }}
-            >
-              <Button
-                className={canPayRent ? "" : "disabled"}
-                color="success"
-                variant="contained"
-                sx={{ fontSize: 10 }}
-                onClick={() =>
-                  dispatch({
-                    type: "payRent",
-                    payload: { playerId: id, selectedProperties, selectedMoney },
-                  })
-                }
-              >
-                Pay Rent
-              </Button>
-              <Button
-                className="disabled"
-                color="error"
-                variant="contained"
-                sx={{ fontSize: 10 }}
-              >
-                Use Just Say No!
-              </Button>
-            </Box>
-          </Box>
-        </Dialog>
+      {chooseCards && (
+        <ChooseCards
+          {...chooseCards}
+          selectedProperties={selectedProperties}
+          selectedOtherCards={selectedOtherCards}
+        />
       )}
       {chooseColorOptions && (
-        <Dialog
-          open
-          sx={{ borderRadius: 4 }}
-          onClose={() => setChooseColorOptions(undefined)}
-        >
+        <Dialog open sx={{ borderRadius: 4 }} onClose={() => setChooseColorOptions(undefined)}>
           <Box
             sx={{
               display: "flex",
@@ -311,36 +405,92 @@ const Game = ({ clientId, roomId, gameState, dispatch }: GameProps) => {
               gap: 1,
             }}
           >
-            {chooseColorOptions.colorOptions.map(({ color, amountInSet }, index) => (
-              <Box
-                key={index}
-                className="perfect-center"
-                onClick={() => {
-                  chooseColorOptions.onChoose(color);
-                  setChooseColorOptions(undefined);
-                }}
-                sx={{
-                  flexDirection: "column",
-                  width: 100,
-                  height: 100,
-                  backgroundColor: colorToColor[color],
-                  userSelect: "none",
-                  color: "white",
-                  borderRadius: 2,
-                  cursor: "pointer",
-                }}
+            {chooseColorOptions.colorOptions.map(({ color, amountInSet }, index) => {
+              const modifiersForColor = fullSets[color]
+                ? setModifiers[color]?.reduce((total, { value }) => total + value, 0) ?? 0
+                : 0;
+              const amountToCharge = amountInSet
+                ? stagesMap[color][Math.min(amountInSet - 1, stagesMap[color].length - 1)] +
+                  modifiersForColor
+                : 0;
+              return (
+                <Box
+                  key={index}
+                  className="perfect-center"
+                  onClick={() => {
+                    chooseColorOptions.onChoose(color);
+                    setChooseColorOptions(undefined);
+                  }}
+                  sx={{
+                    flexDirection: "column",
+                    width: 100,
+                    height: 100,
+                    backgroundColor: colorToColor[color],
+                    userSelect: "none",
+                    color: "white",
+                    borderRadius: 2,
+                    cursor: "pointer",
+                  }}
+                >
+                  <Typography>{color.replace("_", " ")}</Typography>
+                  {chooseColorOptions.isRent && <Typography>{amountToCharge}M</Typography>}
+                </Box>
+              );
+            })}
+          </Box>
+        </Dialog>
+      )}
+      {chooseActionOrMoney && (
+        <Dialog open sx={{ ".MuiPaper-root": { borderRadius: 2 } }}>
+          <Box
+            sx={{
+              backgroundColor: "grey.900",
+              borderRadius: 2,
+              border: "2px solid",
+              borderColor: "primary.main",
+              padding: 2,
+              display: "flex",
+              flexDirection: "column",
+              gap: 2,
+            }}
+          >
+            <ColoredText
+              sentence="You have some options"
+              coloredWords={["options"]}
+              color="primary.main"
+            />
+            <ColoredText
+              sentence="The card you're playing can be used as an action card, or played as if it were just money"
+              coloredWords={["action card", "money"]}
+              color="primary.main"
+              sx={{ fontSize: 10 }}
+            />
+            <Box sx={{ display: "flex", justifyContent: "center", gap: 0.5 }}>
+              <Button
+                variant="contained"
+                color="success"
+                sx={{ fontSize: 8 }}
+                onClick={chooseActionOrMoney.action}
               >
-                <Typography>{color.replace("_", " ")}</Typography>
-                {chooseColorOptions.isRent && (
-                  <Typography>
-                    {stagesMap[color][
-                      Math.min(amountInSet - 1, stagesMap[color].length - 1)
-                    ] ?? 0}
-                    M
-                  </Typography>
-                )}
-              </Box>
-            ))}
+                Play As Action
+              </Button>
+              <Button
+                variant="contained"
+                color="success"
+                sx={{ fontSize: 8 }}
+                onClick={chooseActionOrMoney.money}
+              >
+                Play As Money
+              </Button>
+              <Button
+                variant="contained"
+                color="error"
+                sx={{ fontSize: 8 }}
+                onClick={() => setChooseActionOrMoney(undefined)}
+              >
+                Undo
+              </Button>
+            </Box>
           </Box>
         </Dialog>
       )}
@@ -353,6 +503,10 @@ const Game = ({ clientId, roomId, gameState, dispatch }: GameProps) => {
             key={otherPlayer.id}
             player={otherPlayer}
             sx={{ zoom: 0.7, marginRight: 1, flexShrink: 0 }}
+            onClick={({ id }) => {
+              choosePlayer?.onChoose(id);
+              setChoosePlayer(undefined);
+            }}
           />
         ))}
       </Box>
@@ -380,9 +534,7 @@ const Game = ({ clientId, roomId, gameState, dispatch }: GameProps) => {
               payload: {
                 playerId: id,
                 index,
-                destinationColor: card.color.filter(
-                  color => color !== card.actingColor
-                )[0],
+                destinationColor: card.color.filter(color => color !== card.actingColor)[0],
               },
             });
           }
@@ -443,10 +595,18 @@ const Game = ({ clientId, roomId, gameState, dispatch }: GameProps) => {
               }}
             >
               <Box>
-                <Typography fontSize="10px" color="white" sx={{ marginBottom: 1 }}>
+                {/* <Typography fontSize="10px" color="white" sx={{ marginBottom: 1 }}>
                   <span style={{ color: displayHex }}>{currentPlayerNickname}</span>
                   {` has ${movesLeft} move${movesLeft === 1 ? "" : "s"} left`}
-                </Typography>
+                </Typography> */}
+                <ColoredText
+                  sentence={`${currentPlayerNickname} has ${movesLeft} move${
+                    movesLeft === 1 ? "" : "s"
+                  } left`}
+                  coloredWords={[currentPlayerNickname]}
+                  color={displayHex}
+                  sx={{ fontSize: 10, marginBottom: 1 }}
+                />
                 {!!playersWithRent.length && (
                   <Typography fontSize="10px" color="white" sx={{ marginBottom: 1 }}>
                     <Typography
@@ -460,12 +620,18 @@ const Game = ({ clientId, roomId, gameState, dispatch }: GameProps) => {
                     {`need${playersWithRent.length === 1 ? "s" : ""} to pay RENT`}
                   </Typography>
                 )}
-                <Typography fontSize="8px" color="white">
+                <ColoredText
+                  sentence={`${nextPlayer.nickname} is up next`}
+                  coloredWords={[nextPlayer.nickname]}
+                  color={nextPlayer.displayHex}
+                  sx={{ fontSize: 8 }}
+                />
+                {/* <Typography fontSize="8px" color="white">
                   <span style={{ color: nextPlayer.displayHex }}>
                     {nextPlayer.nickname}
                   </span>
                   {` is up next`}
-                </Typography>
+                </Typography> */}
               </Box>
               {isThisPlayersTurn && (
                 <Button
@@ -486,7 +652,7 @@ const Game = ({ clientId, roomId, gameState, dispatch }: GameProps) => {
               orientation="vertical"
               flexItem
               sx={{ backgroundColor: "white", marginX: 1.5, marginY: 2 }}
-            ></Divider>
+            />
           </Box>
           {/* Cards in Hand */}
           <Box
@@ -524,37 +690,7 @@ const Game = ({ clientId, roomId, gameState, dispatch }: GameProps) => {
                           });
                         },
                       });
-                    } else if (card.type === "rent") {
-                      const options = Array.isArray(card.color)
-                        ? card.color.reduce<ColorOptions[]>(
-                            (acc, color) => [
-                              ...acc,
-                              { color, amountInSet: propertiesMap[color]?.length ?? 0 },
-                            ],
-                            []
-                          )
-                        : allColorOptions;
-                      setChooseColorOptions({
-                        colorOptions: options,
-                        isRent: true,
-                        onChoose: color => {
-                          const amountOfPropertiesInSet = (propertiesMap[color] ?? [])
-                            .length;
-                          const amountToCharge = amountOfPropertiesInSet
-                            ? stagesMap[color][
-                                Math.min(
-                                  amountOfPropertiesInSet - 1,
-                                  stagesMap[color].length - 1
-                                )
-                              ]
-                            : 0;
-                          dispatch({
-                            type: "playCard",
-                            payload: { playerId: id, index, amountToCharge },
-                          });
-                        },
-                      });
-                    } else {
+                    } else if (card.type === "property" || card.type === "money") {
                       dispatch({
                         type: "playCard",
                         payload: {
@@ -564,6 +700,20 @@ const Game = ({ clientId, roomId, gameState, dispatch }: GameProps) => {
                             card.type === "property" && Array.isArray(card.color)
                               ? card.color[0]
                               : undefined,
+                        },
+                      });
+                    } else {
+                      setChooseActionOrMoney({
+                        action: () => {
+                          playActionOrRentCard(card, index);
+                          setChooseActionOrMoney(undefined);
+                        },
+                        money: () => {
+                          dispatch({
+                            type: "playCard",
+                            payload: { playerId: id, index, asMoney: true },
+                          });
+                          setChooseActionOrMoney(undefined);
                         },
                       });
                     }
