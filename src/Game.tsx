@@ -1,13 +1,13 @@
 import { useState, useEffect, useRef } from "react";
-import { GameState, Payloads, Player, SolidColor, TCard } from "./gameReducer";
+import { GameState, Payloads, Player, PropertyCard, SolidColor, TCard } from "./gameReducer";
 import { Box, Button, Dialog, Divider, Typography } from "@mui/material";
 import Card from "./Card";
 import { colorToColor, stagesMap } from "./constants";
 import Board from "./Board";
-import { useToggle } from "./hooks";
 import { createPropertyMap } from "./utils";
 import ChooseCards, { ChooseCardsProps } from "./ChooseCards";
 import ColoredText from "./ColoredText";
+import StagedActionDialog from "./StagedActionDialog";
 
 interface GameProps {
   clientId: string;
@@ -27,9 +27,6 @@ const Game = ({ clientId, gameState, dispatch }: GameProps) => {
     isRent?: boolean;
     onChoose: (color: SolidColor) => void;
   }>();
-  const [selectedProperties, toggleSelectedProperties, setSelectedProperties] = useToggle();
-  /** Other cards can be other properties or our own money */
-  const [selectedOtherCards, toggleSelectedOtherCards, setSelectedOtherCards] = useToggle();
   const [choosePlayer, setChoosePlayer] = useState<{
     onChoose: (targetedPlayerId: string) => void;
   }>();
@@ -71,8 +68,11 @@ const Game = ({ clientId, gameState, dispatch }: GameProps) => {
     money = [],
     movesLeft: thisPlayerMovesLeft,
     rentDue,
-    setModifiers,
-    fullSets,
+    rentModifier,
+    stagedAction,
+    setModifiers = {},
+    fullSets = {},
+    nos,
   } = thisPlayer;
 
   const propertiesMap = createPropertyMap(properties);
@@ -87,6 +87,7 @@ const Game = ({ clientId, gameState, dispatch }: GameProps) => {
     nickname: currentPlayerNickname,
     displayHex,
     movesLeft,
+    nos: currentPlayerNos = [],
   } = players[currentPlayerIndex];
 
   const isThisPlayersTurn = currentPlayerId === id;
@@ -95,19 +96,11 @@ const Game = ({ clientId, gameState, dispatch }: GameProps) => {
   const playersWithRent = players.filter(({ rentDue }) => !!rentDue);
   const playerChargingRentId = playersWithRent[0]?.rentDue?.playerId;
   const playerChargingRent = playerChargingRentId ? playersMap[playerChargingRentId] : undefined;
-  const totalSelected = [...selectedOtherCards, ...selectedProperties].reduce(
-    (total, card) => total + (card?.value ?? 0),
-    0
-  );
-  const allSelected = [properties, money].every((arr, isMoney) =>
-    arr.every((_, index) => (isMoney ? selectedOtherCards[index] : selectedProperties[index]))
-  );
-  const canPayRent = totalSelected >= (rentDue?.amount ?? 0) || allSelected;
+
+  const otherPlayerHasAction = otherPlayers.some(({ stagedAction }) => stagedAction);
 
   const closeChooseCards = () => {
     setChooseCards(undefined);
-    setSelectedProperties([]);
-    setSelectedOtherCards([]);
   };
 
   //  eslint-disable-next-line react-hooks/rules-of-hooks
@@ -115,58 +108,76 @@ const Game = ({ clientId, gameState, dispatch }: GameProps) => {
     if (rentDue) {
       setChooseCards({
         player: thisPlayer,
-        title: (
-          <>
-            {/* <Typography sx={{ color: "white" }}>
-              You owe{" "}
-              <span style={{ color: playerChargingRent?.displayHex }}>{rentDue.amount}M</span> in
-              rent to{" "}
-              <span style={{ color: playerChargingRent?.displayHex }}>
-                {playerChargingRent?.nickname}
-              </span>
-            </Typography> */}
-            <ColoredText
-              sentence={`You owe ${rentDue.amount}M in rent to ${playerChargingRent?.nickname}`}
-              coloredWords={[`${rentDue.amount}M`, playerChargingRent?.nickname ?? ""]}
-              color={playerChargingRent?.displayHex ?? "primary.main"}
-            />
-            <Box
-              className="perfect-center"
-              sx={{
-                width: "40px",
-                height: "40px",
-                borderRadius: "50%",
-                backgroundColor: canPayRent ? "lightgreen" : "coral",
-                color: canPayRent ? "black" : "white",
-                fontWeight: "medium",
-                fontSize: 12,
-              }}
-            >
-              {totalSelected}M
-            </Box>
-          </>
-        ),
-        onClickProperty: (property, index) => toggleSelectedProperties(index, property),
+        title: (selectedProperties, selectedOtherCards) => {
+          const totalSelected = [...selectedOtherCards, ...selectedProperties].reduce(
+            (total, card) => total + (card?.value ?? 0),
+            0
+          );
+          const allSelected = [properties, money].every((arr, isMoney) =>
+            arr.every((_, index) =>
+              isMoney ? selectedOtherCards[index] : selectedProperties[index]
+            )
+          );
+          const canPayRent = totalSelected >= (rentDue?.amount ?? 0) || allSelected;
+          return (
+            <>
+              <ColoredText
+                sentence={`You owe ${rentDue.amount}M in rent to ${playerChargingRent?.nickname}`}
+                coloredWords={[`${rentDue.amount}M`, playerChargingRent?.nickname ?? ""]}
+                color={playerChargingRent?.displayHex ?? "primary.main"}
+              />
+              <Box
+                className="perfect-center"
+                sx={{
+                  width: "40px",
+                  height: "40px",
+                  borderRadius: "50%",
+                  backgroundColor: canPayRent ? "lightgreen" : "coral",
+                  color: canPayRent ? "black" : "white",
+                  fontWeight: "medium",
+                  fontSize: 12,
+                }}
+              >
+                {totalSelected}M
+              </Box>
+            </>
+          );
+        },
+        clickBehavior: "toggle",
         otherCards: money,
-        onClickOtherCard: (moneyCard, index) => toggleSelectedOtherCards(index, moneyCard),
+        otherClickBehavior: "toggle",
         isSet: false,
         primaryAction: {
           label: "Pay Rent",
-          action: () => {
+          action: (selectedProperties, selectedOtherCards) => {
             dispatch({
               type: "payRent",
               payload: { playerId: id, selectedProperties, selectedMoney: selectedOtherCards },
             });
             closeChooseCards();
           },
-          disabled: !canPayRent,
+          disabled: (selectedProperties, selectedOtherCards) => {
+            const totalSelected = [...selectedOtherCards, ...selectedProperties].reduce(
+              (total, card) => total + (card?.value ?? 0),
+              0
+            );
+            const allSelected = [properties, money].every((arr, isMoney) =>
+              arr.every((_, index) =>
+                isMoney ? selectedOtherCards[index] : selectedProperties[index]
+              )
+            );
+            const canPayRent = totalSelected >= (rentDue?.amount ?? 0) || allSelected;
+            return !canPayRent;
+          },
         },
         secondaryAction: {
           label: "Use Just Say No!",
-          action: () => {
-            closeChooseCards();
-          },
-          disabled: true,
+          action: () =>
+            dispatch({
+              type: "sayNo",
+              payload: { isTarget: true, currentPlayerId, targetedPlayerId: id },
+            }),
+          disabled: !hand.some(({ id }) => id === 25),
         },
         skipFullSetFilter: true,
         borderColor: playerChargingRent?.displayHex,
@@ -175,7 +186,7 @@ const Game = ({ clientId, gameState, dispatch }: GameProps) => {
       setChooseCards(undefined);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [rentDue, totalSelected, canPayRent]);
+  }, [rentDue, hand]);
 
   const playActionOrRentCard = (card: TCard, index: number) => {
     const playCard = (
@@ -235,16 +246,6 @@ const Game = ({ clientId, gameState, dispatch }: GameProps) => {
                     color={targetedPlayer.displayHex}
                   />
                 ),
-                //   title: (<Typography sx={{ color: "white" }}>
-                //   Click one{" "}
-                //   <span style={{ color: targetedPlayer.displayHex }}>
-                //     full set
-                //   </span>{" "}
-                //   in order to{" "}
-                //   <span style={{ color: targetedPlayer.displayHex }}>
-                //     steal
-                //   </span>
-                // </Typography>),
                 onChoose: color => {
                   playCard({ targetedPlayerId, destinationColor: color });
                   closeChooseCards();
@@ -272,11 +273,7 @@ const Game = ({ clientId, gameState, dispatch }: GameProps) => {
                     color={targetedPlayer.displayHex}
                   />
                 ),
-                onClickProperty: (_, index) => {
-                  const newArray = [];
-                  newArray[index] = true;
-                  setSelectedProperties(newArray);
-                },
+                clickBehavior: "reset",
                 isSet: false,
                 primaryAction: {
                   label: "Take Card",
@@ -285,6 +282,7 @@ const Game = ({ clientId, gameState, dispatch }: GameProps) => {
                     playCard({ targetedPlayerId, targetedIndex });
                     closeChooseCards();
                   },
+                  disabled: selectedProperties => !selectedProperties.some(val => val),
                 },
                 secondaryAction: {
                   label: "Undo",
@@ -308,24 +306,23 @@ const Game = ({ clientId, gameState, dispatch }: GameProps) => {
                     color={targetedPlayer.displayHex}
                   />
                 ),
-                onClickProperty: (_, index) => {
-                  const newArray = [];
-                  newArray[index] = true;
-                  setSelectedProperties(newArray);
-                },
+                clickBehavior: "reset",
                 otherTitle: (
-                  <ColoredText
-                    sentence="Select one of Your cards to give"
-                    coloredWords={["Your"]}
-                    color={targetedPlayer.displayHex}
-                  />
+                  <Box sx={{ marginTop: 1 }}>
+                    <ColoredText
+                      sentence="Select one of Your cards to give"
+                      coloredWords={["Your"]}
+                      color={targetedPlayer.displayHex}
+                    />
+                  </Box>
                 ),
                 otherCards: properties,
-                onClickOtherCard: (_, index) => {
-                  const newArray = [];
-                  newArray[index] = true;
-                  setSelectedOtherCards(newArray);
+                otherFilter: card => {
+                  const { color, actingColor } = card as PropertyCard;
+                  const colorToUse = actingColor ?? (color as SolidColor);
+                  return !fullSets[colorToUse];
                 },
+                otherClickBehavior: "reset",
                 isSet: false,
                 primaryAction: {
                   label: "Swap",
@@ -334,6 +331,11 @@ const Game = ({ clientId, gameState, dispatch }: GameProps) => {
                     const ownIndex = selectedOtherCards.findIndex(val => val);
                     playCard({ targetedPlayerId, targetedIndex, ownIndex });
                     closeChooseCards();
+                  },
+                  disabled: (selectedProperties, selectedOtherCards) => {
+                    return (
+                      !selectedProperties.some(val => val) || !selectedOtherCards.some(val => val)
+                    );
                   },
                 },
                 secondaryAction: {
@@ -358,16 +360,6 @@ const Game = ({ clientId, gameState, dispatch }: GameProps) => {
                 card.id === 30 ? "House" : "Hotel"
               } to`}</Typography>
             ),
-            //   title: (<Typography sx={{ color: "white" }}>
-            //   Click one{" "}
-            //   <span style={{ color: targetedPlayer.displayHex }}>
-            //     full set
-            //   </span>{" "}
-            //   in order to{" "}
-            //   <span style={{ color: targetedPlayer.displayHex }}>
-            //     steal
-            //   </span>
-            // </Typography>),
             secondaryAction: {
               label: "Undo",
               action: closeChooseCards,
@@ -387,13 +379,7 @@ const Game = ({ clientId, gameState, dispatch }: GameProps) => {
 
   return (
     <Box padding={4} paddingTop={2}>
-      {chooseCards && (
-        <ChooseCards
-          {...chooseCards}
-          selectedProperties={selectedProperties}
-          selectedOtherCards={selectedOtherCards}
-        />
-      )}
+      {chooseCards && <ChooseCards {...chooseCards} />}
       {chooseColorOptions && (
         <Dialog open sx={{ borderRadius: 4 }} onClose={() => setChooseColorOptions(undefined)}>
           <Box
@@ -433,7 +419,9 @@ const Game = ({ clientId, gameState, dispatch }: GameProps) => {
                   }}
                 >
                   <Typography>{color.replace("_", " ")}</Typography>
-                  {chooseColorOptions.isRent && <Typography>{amountToCharge}M</Typography>}
+                  {chooseColorOptions.isRent && (
+                    <Typography>{amountToCharge * rentModifier}M</Typography>
+                  )}
                 </Box>
               );
             })}
@@ -466,29 +454,139 @@ const Game = ({ clientId, gameState, dispatch }: GameProps) => {
               sx={{ fontSize: 10 }}
             />
             <Box sx={{ display: "flex", justifyContent: "center", gap: 0.5 }}>
-              <Button
-                variant="contained"
-                color="success"
-                sx={{ fontSize: 8 }}
-                onClick={chooseActionOrMoney.action}
-              >
+              <Button color="success" sx={{ fontSize: 8 }} onClick={chooseActionOrMoney.action}>
                 Play As Action
               </Button>
-              <Button
-                variant="contained"
-                color="success"
-                sx={{ fontSize: 8 }}
-                onClick={chooseActionOrMoney.money}
-              >
+              <Button color="success" sx={{ fontSize: 8 }} onClick={chooseActionOrMoney.money}>
                 Play As Money
               </Button>
               <Button
-                variant="contained"
                 color="error"
                 sx={{ fontSize: 8 }}
                 onClick={() => setChooseActionOrMoney(undefined)}
               >
                 Undo
+              </Button>
+            </Box>
+          </Box>
+        </Dialog>
+      )}
+      {stagedAction && (
+        <StagedActionDialog
+          stagedAction={stagedAction}
+          currentPlayer={players[currentPlayerIndex]}
+          targetedPlayer={thisPlayer}
+          sayNo={() =>
+            dispatch({
+              type: "sayNo",
+              payload: { isTarget: true, targetedPlayerId: id, currentPlayerId },
+            })
+          }
+          letItHappen={() => dispatch({ type: "giveUpCards", payload: stagedAction })}
+        />
+      )}
+      {((isThisPlayersTurn && otherPlayerHasAction) || currentPlayerNos.includes(id)) && (
+        <Dialog
+          open
+          sx={{ ".MuiPaper-root": { borderRadius: 2 }, zIndex: theme => theme.zIndex.modal + 1 }}
+        >
+          <Box
+            sx={{
+              borderRadius: 2,
+              border: "2px solid yellow",
+              backgroundColor: "grey.900",
+              padding: 2,
+              display: "flex",
+              flexDirection: "column",
+              gap: 1,
+            }}
+          >
+            <Typography sx={{ color: "white", marginBottom: 1 }}>
+              {isThisPlayersTurn ? "You've just targeted someone!" : "You've just said no!"}
+            </Typography>
+            {!isThisPlayersTurn && (
+              <ColoredText
+                sentence="Good news, you may have just avoided an action"
+                coloredWords={["Good news"]}
+                color="success.main"
+                sx={{ fontSize: 10 }}
+              />
+            )}
+            <ColoredText
+              sentence="But if the other player or players have a Just Say No! card, they can say no to you even if you've used a Just Say No! card against them"
+              coloredWords={["they can say no to you"]}
+              color="error.main"
+              sx={{ fontSize: 10 }}
+            />
+            <Typography sx={{ color: "white", fontSize: 10 }}>
+              This interface will appear whether or not they have a Just Say No! in their hand.
+            </Typography>
+          </Box>
+        </Dialog>
+      )}
+      {nos?.length && (
+        <Dialog
+          open
+          sx={{ ".MuiPaper-root": { borderRadius: 2 }, zIndex: theme => theme.zIndex.modal + 2 }}
+        >
+          <Box
+            sx={{
+              borderRadius: 2,
+              border: "2px solid",
+              borderColor: "primary.main",
+              backgroundColor: "grey.900",
+              padding: 2,
+              display: "flex",
+              flexDirection: "column",
+              gap: 1,
+            }}
+          >
+            <Typography sx={{ color: "white", marginBottom: 1 }}>{`${
+              playersMap[nos[0]].nickname
+            } just said no to you!`}</Typography>
+            <ColoredText
+              sentence="You can say no to their say no, and put the heat back on them!"
+              coloredWords={["say no to their say no"]}
+              color="success.main"
+              sx={{ fontSize: 10 }}
+            />
+            <ColoredText
+              sentence="This would not take up one of your 3 plays you can do each turn"
+              coloredWords={["not take up"]}
+              color="success.main"
+              sx={{ fontSize: 10 }}
+            />
+            <ColoredText
+              sentence="If you don't say no, this player get's to avoid your action"
+              coloredWords={["get's to avoid your action"]}
+              color="error.main"
+              sx={{ fontSize: 10 }}
+            />
+            <Box sx={{ display: "flex", justifyContent: "space-around", marginTop: 2 }}>
+              <Button
+                className={!hand.length || !hand.some(({ id }) => id === 25) ? "disabled" : ""}
+                color="success"
+                onClick={() =>
+                  dispatch({
+                    type: "sayNo",
+                    payload: { isTarget: false, currentPlayerId, targetedPlayerId: nos[0] },
+                  })
+                }
+                sx={{ fontSize: 8 }}
+              >
+                Say No Back!
+              </Button>
+              <Button
+                color="error"
+                onClick={() =>
+                  dispatch({
+                    type: "acceptNo",
+                    payload: { currentPlayerId, targetedPlayerId: nos[0] },
+                  })
+                }
+                sx={{ fontSize: 8 }}
+              >
+                Accept You've Been No'd
               </Button>
             </Box>
           </Box>
@@ -595,10 +693,6 @@ const Game = ({ clientId, gameState, dispatch }: GameProps) => {
               }}
             >
               <Box>
-                {/* <Typography fontSize="10px" color="white" sx={{ marginBottom: 1 }}>
-                  <span style={{ color: displayHex }}>{currentPlayerNickname}</span>
-                  {` has ${movesLeft} move${movesLeft === 1 ? "" : "s"} left`}
-                </Typography> */}
                 <ColoredText
                   sentence={`${currentPlayerNickname} has ${movesLeft} move${
                     movesLeft === 1 ? "" : "s"
@@ -626,22 +720,69 @@ const Game = ({ clientId, gameState, dispatch }: GameProps) => {
                   color={nextPlayer.displayHex}
                   sx={{ fontSize: 8 }}
                 />
-                {/* <Typography fontSize="8px" color="white">
-                  <span style={{ color: nextPlayer.displayHex }}>
-                    {nextPlayer.nickname}
-                  </span>
-                  {` is up next`}
-                </Typography> */}
               </Box>
               {isThisPlayersTurn && (
                 <Button
                   className={playerChargingRentId === id ? "disabled" : ""}
                   color="error"
-                  variant="contained"
                   sx={{ fontSize: 8 }}
                   onClick={() => {
-                    if (moreThan7) console.log("has more than 7");
-                    dispatch({ type: "endTurn", payload: currentPlayerIndex });
+                    if (moreThan7) {
+                      setChooseCards({
+                        player: thisPlayer,
+                        cards: hand,
+                        skipFullSetFilter: true,
+                        cardSx: {
+                          ":not(.selected):hover::after": {
+                            position: "absolute",
+                            content: "'X'",
+                            inset: 0,
+                            background: "red",
+                            color: "white",
+                            borderRadius: 2,
+                            opacity: 0.9,
+                            fontSize: 72,
+                            display: "flex",
+                            justifyContent: "center",
+                            alignItems: "center",
+                            textAlign: "center",
+                            zIndex: 5,
+                          },
+                        },
+                        title: (
+                          <ColoredText
+                            sentence="You have more than 7 cards. Click to discard cards, or close this modal and play cards (if you can)"
+                            coloredWords={["Click to discard cards"]}
+                            color="red"
+                          />
+                        ),
+                        clickBehavior: "toggle",
+                        isSet: false,
+                        primaryAction: {
+                          label: "Discard Cards",
+                          action: selectedCards => {
+                            dispatch({
+                              type: "discardCards",
+                              payload: { playerId: id, selectedCards },
+                            });
+                            closeChooseCards();
+                          },
+                          disabled: selectedProperties => {
+                            const totalSelected = selectedProperties.reduce(
+                              (total, val) => (val ? total + 1 : total),
+                              0
+                            );
+                            return hand.length - totalSelected !== 7;
+                          },
+                        },
+                        secondaryAction: {
+                          label: "Close",
+                          action: closeChooseCards,
+                        },
+                      });
+                    } else {
+                      dispatch({ type: "endTurn", payload: currentPlayerIndex });
+                    }
                   }}
                 >
                   {moreThan7 ? "Discard and End Turn" : "End Turn"}

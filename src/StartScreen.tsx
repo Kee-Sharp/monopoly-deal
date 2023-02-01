@@ -23,9 +23,7 @@ const StartScreen = ({ onCreateGame, onJoinGame }: StartScreenProps) => {
   };
 
   return (
-    <Box
-      sx={{ display: "flex", flexDirection: "column", alignItems: "center", padding: 2 }}
-    >
+    <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", padding: 2 }}>
       <Typography
         variant="h2"
         textAlign="center"
@@ -60,7 +58,6 @@ const StartScreen = ({ onCreateGame, onJoinGame }: StartScreenProps) => {
           inputProps={{ sx: { color: "grey.400" } }}
         />
         <Button
-          variant="contained"
           color="success"
           sx={{ marginBottom: 2 }}
           onClick={() => {
@@ -94,16 +91,12 @@ const StartScreen = ({ onCreateGame, onJoinGame }: StartScreenProps) => {
               }}
               inputProps={{ sx: { color: "grey.400" } }}
             />
-            <Button variant="contained" color="secondary" onClick={handleJoin}>
+            <Button color="secondary" onClick={handleJoin}>
               Join
             </Button>
           </Box>
         ) : (
-          <Button
-            variant="contained"
-            color="secondary"
-            onClick={() => setShowJoinInput(true)}
-          >
+          <Button color="secondary" onClick={() => setShowJoinInput(true)}>
             Join Game
           </Button>
         )}

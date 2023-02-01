@@ -12,6 +12,7 @@ const theme = createTheme({
       main: "#f5f5f5",
     },
   },
+  components: { MuiButton: { defaultProps: { variant: "contained" } } },
 });
 root.render(
   <ThemeProvider theme={theme}>

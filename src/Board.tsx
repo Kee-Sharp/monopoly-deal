@@ -130,13 +130,12 @@ const Board = ({ player, myBoard, isTurn = false, onFlip, onClick, sx }: BoardPr
                 ":hover": { transform: "scale(1.2)", zIndex: 4 },
               }}
             >
-              {(propertiesMap[color] ?? []).map(({ card, originalIndex }) => (
+              {(propertiesMap[color] ?? []).map(({ card, originalIndex }, index) => (
                 <Card
-                  key={`${color}-card ${card.id}-${originalIndex}`}
+                  key={`${color}-card ${index}`}
                   card={card}
                   canFlip={isTurn}
                   onFlip={card => onFlip?.(card, originalIndex, color)}
-                  currentSet={color}
                   sx={{
                     ":not(:first-of-type)": {
                       marginTop: "calc(-1.5 * var(--size) * 0.82)",

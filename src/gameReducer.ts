@@ -2,7 +2,14 @@ import _ from "lodash";
 import { Reducer } from "react";
 import cards from "./cards.json";
 import { colorToColor, defaultCardConfig } from "./constants";
-import { removeFromArray, setValueInArray, sortCards, takeFirstN, updateFullSets } from "./utils";
+import {
+  partition,
+  removeFromArray,
+  setValueInArray,
+  sortCards,
+  takeFirstN,
+  updateFullSets,
+} from "./utils";
 
 // prettier-ignore
 export const colors = [
@@ -42,9 +49,12 @@ export interface Player {
   money: TCard[];
   movesLeft: number;
   rentDue: { playerId: string; amount: number } | null;
+  stagedAction: StagedAction | null;
   rentModifier: number;
   setModifiers: Partial<Record<SolidColor, TCard[]>>;
   fullSets: FullSets;
+  /** A list of playerId's who have no'd you */
+  nos?: string[];
 }
 export type GameState = {
   players: Player[];
@@ -60,6 +70,16 @@ export const init = (): GameState => {
     gameStarted: false,
   };
 };
+
+export interface StagedAction {
+  cardId: number;
+  currentPlayerIndex: number;
+  targetedPlayerIndex: number;
+  takingIndices: number[];
+  givingIndex?: number;
+  takingModifiers?: SolidColor;
+  newMessageContent: string;
+}
 
 type PayloadAction<T, P = undefined> = P extends undefined ? { type: T } : { type: T; payload: P };
 
@@ -92,6 +112,9 @@ export type Payloads =
         selectedMoney: (TCard | undefined)[];
       }
     >
+  | PayloadAction<"giveUpCards", StagedAction>
+  | PayloadAction<"sayNo", { isTarget: boolean; targetedPlayerId: string; currentPlayerId: string }>
+  | PayloadAction<"acceptNo", { targetedPlayerId: string; currentPlayerId: string }>
   | PayloadAction<"flipHandCard", { playerId: string; index: number }>
   | PayloadAction<
       "flipPropertyCard",
@@ -101,7 +124,8 @@ export type Payloads =
         destinationColor: SolidColor;
       }
     >
-  | PayloadAction<"endTurn", number>;
+  | PayloadAction<"endTurn", number>
+  | PayloadAction<"discardCards", { playerId: string; selectedCards: TCard[] }>;
 
 const reducer: Reducer<GameState, Payloads> = (state, action) => {
   switch (action.type) {
@@ -116,6 +140,7 @@ const reducer: Reducer<GameState, Payloads> = (state, action) => {
         money: [],
         movesLeft: 0,
         rentDue: null,
+        stagedAction: null,
         rentModifier: 1,
         setModifiers: {},
         fullSets: {},
@@ -204,36 +229,27 @@ const reducer: Reducer<GameState, Payloads> = (state, action) => {
           if (!asMoney) {
             const targetedPlayerIndex = newPlayers.findIndex(({ id }) => id === targetedPlayerId);
             const targetedPlayer = newPlayers[targetedPlayerIndex];
+            let stagedAction: StagedAction | null = null;
             switch (card.id) {
               // deal breaker
               case 24: {
                 if (!targetedPlayer || !destinationColor) return state;
-                const [propertiesToTake, propertiesThatRemain] = targetedPlayer.properties.reduce<
-                  [PropertyCard[], PropertyCard[]]
-                >(
-                  ([toTakeAcc, remainAcc], property) =>
-                    [property.color, property.actingColor].includes(destinationColor)
-                      ? [[...toTakeAcc, property], remainAcc]
-                      : [toTakeAcc, [...remainAcc, property]],
-                  [[], []]
+                const takingIndices = targetedPlayer.properties.reduce<number[]>(
+                  (acc, element, index) =>
+                    [element.actingColor, element.color].includes(destinationColor)
+                      ? [...acc, index]
+                      : acc,
+                  []
                 );
-                newProperties = [...newProperties, ...propertiesToTake];
-                newSetModifiers = {
-                  ...newSetModifiers,
-                  [destinationColor]: [
-                    ...(newSetModifiers[destinationColor] ?? []),
-                    ...(targetedPlayer.setModifiers?.[destinationColor] ?? []),
-                  ],
-                };
-                newPlayers = setValueInArray(newPlayers, targetedPlayerIndex, {
-                  ...targetedPlayer,
-                  properties: propertiesThatRemain,
-                  setModifiers: {
-                    ...(targetedPlayer.setModifiers ?? {}),
-                    [destinationColor]: [],
-                  },
-                });
                 newMessageContent = `${nickname} took a full set from ${targetedPlayer.nickname}`;
+                stagedAction = {
+                  cardId: card.id,
+                  currentPlayerIndex,
+                  targetedPlayerIndex,
+                  takingIndices,
+                  takingModifiers: destinationColor,
+                  newMessageContent,
+                };
                 break;
               }
               // just say no
@@ -244,32 +260,28 @@ const reducer: Reducer<GameState, Payloads> = (state, action) => {
               // sly deal
               case 26: {
                 if (!targetedPlayer || !targetedIndex) return state;
-                newProperties = [...newProperties, targetedPlayer.properties[targetedIndex]];
-                newPlayers = setValueInArray(newPlayers, targetedPlayerIndex, {
-                  ...targetedPlayer,
-                  properties: targetedPlayer.properties.filter(
-                    (_, index) => index !== targetedIndex
-                  ),
-                });
                 newMessageContent = `${nickname} took a card from ${targetedPlayer.nickname}`;
+                stagedAction = {
+                  cardId: card.id,
+                  currentPlayerIndex,
+                  targetedPlayerIndex,
+                  takingIndices: [targetedIndex],
+                  newMessageContent,
+                };
                 break;
               }
               // forced deal
               case 27: {
                 if (!targetedPlayer || !targetedIndex || !ownIndex) return state;
-                newProperties = [
-                  ...newProperties.filter((_, index) => index !== ownIndex),
-                  targetedPlayer.properties[targetedIndex],
-                ];
-                const newTargetedProperties = [
-                  ...targetedPlayer.properties.filter((_, index) => index !== targetedIndex),
-                  properties[ownIndex],
-                ];
-                newPlayers = setValueInArray(newPlayers, targetedPlayerIndex, {
-                  ...targetedPlayer,
-                  properties: newTargetedProperties,
-                });
                 newMessageContent = `${nickname} swapped cards with ${targetedPlayer.nickname}`;
+                stagedAction = {
+                  cardId: card.id,
+                  currentPlayerIndex,
+                  targetedPlayerIndex,
+                  takingIndices: [targetedIndex],
+                  givingIndex: ownIndex,
+                  newMessageContent,
+                };
                 break;
               }
               // debt collector
@@ -310,6 +322,13 @@ const reducer: Reducer<GameState, Payloads> = (state, action) => {
               }
               default:
                 return state;
+            }
+            if (stagedAction) {
+              newPlayers = setValueInArray(newPlayers, targetedPlayerIndex, {
+                ...targetedPlayer,
+                stagedAction,
+              });
+              newMessageContent = `${nickname} targeted ${targetedPlayer.nickname}`;
             }
             if (!amountToCharge) break;
           }
@@ -411,7 +430,7 @@ const reducer: Reducer<GameState, Payloads> = (state, action) => {
       });
       newPlayers = setValueInArray(newPlayers, playerChargingRentIndex, {
         ...rest,
-        properties: [...chargingRentProperties, ...sendingProperties],
+        properties: sortCards([...chargingRentProperties, ...sendingProperties]),
         money: [...chargingRentMoney, ...sendingMoney],
       });
       newPlayers = newPlayers.map(({ properties, ...rest }) => ({
@@ -424,6 +443,120 @@ const reducer: Reducer<GameState, Payloads> = (state, action) => {
         players: newPlayers,
         messages: [...messages, { id: "game", content: `${nickname} paid rent` }],
       };
+    }
+    case "giveUpCards": {
+      const { players, messages } = state;
+      const {
+        currentPlayerIndex,
+        targetedPlayerIndex,
+        takingIndices,
+        givingIndex,
+        takingModifiers,
+        newMessageContent,
+      } = action.payload;
+      let newPlayers = players;
+      const currentPlayer = players[currentPlayerIndex];
+      const targetedPlayer = players[targetedPlayerIndex];
+      const [targetedSending, targetedStaying] = partition(targetedPlayer.properties, (_, index) =>
+        takingIndices.includes(index)
+      );
+      const [currentSending, currentStaying] = partition(
+        currentPlayer.properties,
+        (_, index) => givingIndex === index
+      );
+      let newCurrentSetModifies = currentPlayer.setModifiers ?? {};
+      let newTargetedSetModifies = targetedPlayer.setModifiers ?? {};
+      if (takingModifiers) {
+        newCurrentSetModifies = {
+          ...newCurrentSetModifies,
+          [takingModifiers]: [
+            ...(newCurrentSetModifies?.[takingModifiers] ?? []),
+            ...(newTargetedSetModifies?.[takingModifiers] ?? []),
+          ],
+        };
+        newTargetedSetModifies = { ...newTargetedSetModifies, [takingModifiers]: [] };
+      }
+      newPlayers = setValueInArray(newPlayers, currentPlayerIndex, {
+        ...currentPlayer,
+        properties: [...currentStaying, ...targetedSending],
+        setModifiers: newCurrentSetModifies,
+      });
+      newPlayers = setValueInArray(newPlayers, targetedPlayerIndex, {
+        ...targetedPlayer,
+        stagedAction: null,
+        properties: [...targetedStaying, ...currentSending],
+        setModifiers: newTargetedSetModifies,
+      });
+      newPlayers = newPlayers.map(player => {
+        const properties = sortCards(player.properties ?? []);
+        const fullSets = updateFullSets(properties);
+        return { ...player, properties, fullSets };
+      });
+      return {
+        ...state,
+        players: newPlayers,
+        messages: [...messages, { id: "game", content: newMessageContent }],
+      };
+    }
+    case "sayNo": {
+      const { players, messages } = state;
+      const { isTarget, currentPlayerId, targetedPlayerId } = action.payload;
+      const currentPlayerIndex = players.findIndex(({ id }) => id === currentPlayerId);
+      const currentPlayer = players[currentPlayerIndex];
+      const targetedPlayerIndex = players.findIndex(({ id }) => id === targetedPlayerId);
+      const targetedPlayer = players[targetedPlayerIndex];
+      let newPlayers = players;
+      if (isTarget) {
+        const noIndex = targetedPlayer.hand.findIndex(({ id }) => id === 25);
+        const [newHand] = removeFromArray(targetedPlayer.hand, noIndex);
+        // add the targeted player to the current player's no list
+        newPlayers = setValueInArray(newPlayers, currentPlayerIndex, {
+          ...currentPlayer,
+          nos: [...(currentPlayer.nos ?? []), targetedPlayerId],
+        });
+        newPlayers = setValueInArray(newPlayers, targetedPlayerIndex, {
+          ...targetedPlayer,
+          hand: newHand,
+        });
+      } else {
+        const noIndex = currentPlayer.hand.findIndex(({ id }) => id === 25);
+        const [newHand] = removeFromArray(currentPlayer.hand, noIndex);
+        // cancel out the no from the targeted player by removing them from the current player's no list
+        newPlayers = setValueInArray(newPlayers, currentPlayerIndex, {
+          ...currentPlayer,
+          nos: (currentPlayer.nos ?? []).filter(id => id !== targetedPlayerId),
+          hand: newHand,
+        });
+      }
+      return {
+        ...state,
+        players: newPlayers,
+        messages: [
+          ...messages,
+          {
+            id: "game",
+            content: `${isTarget ? targetedPlayer.nickname : currentPlayer.nickname} said no!`,
+          },
+        ],
+      };
+    }
+    case "acceptNo": {
+      const { players } = state;
+      const { targetedPlayerId, currentPlayerId } = action.payload;
+      const currentPlayerIndex = players.findIndex(({ id }) => id === currentPlayerId);
+      const targetedPlayerIndex = players.findIndex(({ id }) => id === targetedPlayerId);
+      const currentPlayer = players[currentPlayerIndex];
+      const targetedPlayer = players[targetedPlayerIndex];
+      let newPlayers = setValueInArray(players, currentPlayerIndex, {
+        ...currentPlayer,
+        nos: (currentPlayer.nos ?? []).filter(id => id !== targetedPlayerId),
+      });
+      newPlayers = setValueInArray(newPlayers, targetedPlayerIndex, {
+        ...targetedPlayer,
+        rentDue: null,
+        stagedAction: null,
+      });
+      return { ...state, players: newPlayers };
     }
     case "flipHandCard": {
       const { players } = state;
@@ -486,12 +619,12 @@ const reducer: Reducer<GameState, Payloads> = (state, action) => {
       const currentPlayer = players[action.payload];
       const newPlayers = [...players];
       newPlayers[currentPlayerIndex] = { ...currentPlayer, movesLeft: 0 };
-      const [twoCards, newDeck] = takeFirstN(deck, 2);
       const nextIndex = (currentPlayerIndex + 1) % players.length;
       const nextPlayer = newPlayers[nextIndex];
+      const [newCards, newDeck] = takeFirstN(deck, nextPlayer.hand.length ? 2 : 5);
       newPlayers[nextIndex] = {
         ...nextPlayer,
-        hand: [...nextPlayer.hand, ...twoCards],
+        hand: [...nextPlayer.hand, ...newCards],
         movesLeft: 3,
       };
       return {
@@ -501,6 +634,39 @@ const reducer: Reducer<GameState, Payloads> = (state, action) => {
         messages: [...messages, { id: "game", content: `${currentPlayer.nickname} ended turn` }],
         currentPlayerId: nextPlayer.id,
       };
+    }
+    case "discardCards": {
+      const { players, messages } = state;
+      const { playerId, selectedCards } = action.payload;
+      const currentPlayerIndex = players.findIndex(({ id }) => id === playerId);
+      const currentPlayer = players[currentPlayerIndex];
+      const discardingIndices = selectedCards.reduce<number[]>(
+        (acc, card, index) => (card ? [...acc, index] : acc),
+        []
+      );
+      const [, newHand] = partition(currentPlayer.hand, (_, index) =>
+        discardingIndices.includes(index)
+      );
+      const newPlayers = setValueInArray(players, currentPlayerIndex, {
+        ...currentPlayer,
+        hand: newHand,
+      });
+      return reducer(
+        {
+          ...state,
+          players: newPlayers,
+          messages: [
+            ...messages,
+            {
+              id: "game",
+              content: `${currentPlayer.nickname} discarded ${discardingIndices.length} card${
+                discardingIndices.length === 1 ? "" : "s"
+              }`,
+            },
+          ],
+        },
+        { type: "endTurn", payload: currentPlayerIndex }
+      );
     }
     default: {
       return state;

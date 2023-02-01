@@ -54,12 +54,7 @@ const WaitingRoom = ({ roomId, players, onStart }: WaitingRoomProps) => {
           {nickname}
         </Typography>
       ))}
-      <Button
-        variant="contained"
-        onClick={onStart}
-        sx={{ marginTop: 4 }}
-        disabled={players.length <= 1}
-      >
+      <Button onClick={onStart} sx={{ marginTop: 4 }} disabled={players.length <= 1}>
         Start Game
       </Button>
     </Box>

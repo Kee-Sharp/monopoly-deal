@@ -1,6 +1,6 @@
 import ImportExportIcon from "@mui/icons-material/ImportExport";
 import { Box, Typography } from "@mui/material";
-import type { Color, SolidColor, TCard } from "./gameReducer";
+import type { Color, TCard } from "./gameReducer";
 import { SystemStyleObject } from "@mui/system";
 import { Theme } from "@mui/material";
 import { moneyToColor, colorToColor, rainbowBackground, stagesMap } from "./constants";
@@ -10,13 +10,11 @@ export interface CardProps {
   canFlip?: boolean;
   onFlip?: (card: TCard) => void;
   onClick?: (card: TCard) => void;
-  /** Used for when the card is a rainbow */
-  currentSet?: SolidColor;
   sx?: SystemStyleObject<Theme>;
   selected?: boolean;
 }
 
-const Card = ({ card, canFlip = true, onFlip, onClick, currentSet, sx, selected }: CardProps) => {
+const Card = ({ card, canFlip = true, onFlip, onClick, sx, selected }: CardProps) => {
   const { type, value } = card;
   let content: React.ReactNode = null;
   let backgroundColor = "black";
@@ -72,12 +70,12 @@ const Card = ({ card, canFlip = true, onFlip, onClick, currentSet, sx, selected 
         colorToUse = color;
         stagesToUse = stages;
       } else {
-        if (currentSet) {
-          backgroundColor = colorToColor[currentSet];
+        if (actingColor) {
+          backgroundColor = colorToColor[actingColor];
         }
         content = (
           <>
-            {currentSet && reverseCircle}
+            {actingColor && reverseCircle}
             <Typography
               sx={{
                 lineHeight: "normal",

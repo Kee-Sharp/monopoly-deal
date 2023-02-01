@@ -5,20 +5,13 @@ export const takeFirstN = <T>(arr: T[], n: number): [firstN: T[], remaining: T[]
   return [arr.slice(0, n), arr.slice(n)];
 };
 
-export const setValueInArray = <T, V extends T = T>(
-  arr: T[],
-  index: number,
-  value: V
-) => {
+export const setValueInArray = <T, V extends T = T>(arr: T[], index: number, value: V) => {
   const newArray = [...arr];
   newArray[index] = value;
   return newArray;
 };
 
-export const removeFromArray = <T>(
-  arr: T[],
-  index: number
-): [newArray: T[], oldValue: T] => {
+export const removeFromArray = <T>(arr: T[], index: number): [newArray: T[], oldValue: T] => {
   const newArray: T[] = [];
   for (let i = 0; i < arr.length; i++) {
     if (i !== index) newArray.push(arr[i]);
@@ -43,4 +36,14 @@ export const updateFullSets = (properties: Player["properties"]) => {
     const stages = stagesMap[color as SolidColor];
     return { ...acc, [color]: pile.length >= stages.length };
   }, {} as FullSets);
+};
+
+export const partition = <T>(arr: T[], predicate: (element: T, index: number) => boolean) => {
+  return arr.reduce<[T[], T[]]>(
+    ([truthy, falsy], element, index) => {
+      const result = predicate(element, index);
+      return result ? [[...truthy, element], falsy] : [truthy, [...falsy, element]];
+    },
+    [[], []]
+  );
 };

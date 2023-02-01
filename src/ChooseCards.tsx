@@ -2,34 +2,37 @@ import { Box, Button, Dialog, Theme } from "@mui/material";
 import { SystemStyleObject } from "@mui/system";
 import Card from "./Card";
 import { colors, Player, PropertyCard, SolidColor, TCard } from "./gameReducer";
+import { useToggle } from "./hooks";
 
 export type ChooseCardsOptions =
   | {
       isSet: false;
-      onClickProperty: (property: TCard, index: number) => void;
+      clickBehavior: "toggle" | "reset";
       onChoose?: never;
     }
   | {
       isSet: true;
-      onClickProperty?: never;
+      clickBehavior?: never;
       onChoose: (color: SolidColor) => void;
     };
 
 export type ChooseCardsProps = {
   player: Player;
-  title: React.ReactNode;
+  cards?: TCard[];
+  cardSx?: SystemStyleObject<Theme>;
+  title:
+    | React.ReactNode
+    | ((selectedProperties: TCard[], selectedOtherCards: TCard[]) => React.ReactNode);
   titleSx?: SystemStyleObject<Theme>;
   borderColor?: string;
   otherTitle?: React.ReactNode;
   otherCards?: TCard[];
-  selectedProperties?: TCard[];
-  selectedOtherCards?: TCard[];
-  onClickOtherCard?: (property: TCard, index: number) => void;
+  otherClickBehavior?: "toggle" | "reset";
   otherFilter?: (property: TCard) => boolean;
   primaryAction?: {
     label: string;
     action: (selectedProperties: TCard[], selectedOtherCards: TCard[]) => void;
-    disabled?: boolean;
+    disabled?: boolean | ((selectedProperties: TCard[], selectedOtherCards: TCard[]) => boolean);
   };
   secondaryAction: { label: string; action: () => void; disabled?: boolean };
   skipFullSetFilter?: boolean;
@@ -39,20 +42,24 @@ const ChooseCards = ({
   isSet,
   onChoose,
   player,
+  cards,
+  cardSx,
   title,
   titleSx,
   borderColor = player.displayHex,
   otherTitle,
   otherCards,
-  selectedProperties = [],
-  selectedOtherCards = [],
-  onClickProperty,
-  onClickOtherCard,
+  clickBehavior,
+  otherClickBehavior,
   otherFilter,
   primaryAction,
   secondaryAction,
   skipFullSetFilter = false,
 }: ChooseCardsProps) => {
+  const [selectedProperties, toggleSelectedProperties, setSelectedProperties] = useToggle();
+  /** Other cards can be other properties or our own money */
+  const [selectedOtherCards, toggleSelectedOtherCards, setSelectedOtherCards] = useToggle();
+
   const { properties = [], fullSets = {} } = player;
   const propertiesMap = properties.reduce((map, property, index) => {
     const color = property.actingColor ?? (property.color as SolidColor);
@@ -61,6 +68,32 @@ const ChooseCards = ({
       [color]: [...(map[color] ?? []), { card: property, originalIndex: index }],
     };
   }, {} as Record<SolidColor, { card: PropertyCard; originalIndex: number }[]>);
+
+  let isPrimaryActionDisabled = false;
+  if (typeof primaryAction?.disabled === "function")
+    isPrimaryActionDisabled = primaryAction.disabled(selectedProperties, selectedOtherCards);
+  else isPrimaryActionDisabled = !!primaryAction?.disabled;
+
+  const onClickProperty = (property: TCard, index: number) => {
+    if (clickBehavior === "reset") {
+      const newArray = [];
+      newArray[index] = true;
+      setSelectedProperties(newArray);
+    } else {
+      toggleSelectedProperties(index, property);
+    }
+  };
+
+  const onClickOtherCard = (otherCard: TCard, index: number) => {
+    if (otherClickBehavior === "reset") {
+      const newArray = [];
+      newArray[index] = true;
+      setSelectedOtherCards(newArray);
+    } else {
+      toggleSelectedOtherCards(index, otherCard);
+    }
+  };
+
   return (
     <Dialog open sx={{ ".MuiPaper-root": { backgroundColor: "grey.900" } }}>
       <Box
@@ -68,7 +101,6 @@ const ChooseCards = ({
           padding: 2,
           borderRadius: 2,
           backgroundColor: "grey.900",
-          // border: `2px solid ${playerChargingRent?.displayHex ?? "primary.main"}`,
           border: `2px solid ${borderColor}`,
         }}
       >
@@ -83,11 +115,11 @@ const ChooseCards = ({
             ...titleSx,
           }}
         >
-          {title}
+          {typeof title === "function" ? title(selectedProperties, selectedOtherCards) : title}
         </Box>
         <Box className="custom-scrollbar" sx={{ display: "flex", overflowX: "auto", gap: 0.5 }}>
           {!isSet &&
-            properties
+            (cards ?? properties)
               .map((property, index) => (
                 <Card
                   key={`property-${index}`}
@@ -99,13 +131,15 @@ const ChooseCards = ({
                     flexShrink: 0,
                     zoom: 0.9,
                     ":hover": {},
+                    ...cardSx,
                   }}
                 />
               ))
               .filter((_, index) => {
+                if (skipFullSetFilter) return true;
                 const color =
                   properties[index].actingColor ?? (properties[index].color as SolidColor);
-                return !fullSets[color] || skipFullSetFilter;
+                return !fullSets[color];
               })}
           {isSet &&
             colors
@@ -123,7 +157,6 @@ const ChooseCards = ({
                       key={`${color}-card ${card.id}-${originalIndex}`}
                       card={card}
                       canFlip={false}
-                      currentSet={color}
                       sx={{
                         ":not(:first-of-type)": {
                           marginTop: "calc(-1.5 * var(--size) * 0.82)",
@@ -181,9 +214,8 @@ const ChooseCards = ({
         >
           {primaryAction && (
             <Button
-              className={primaryAction.disabled ? "disabled" : ""}
+              className={isPrimaryActionDisabled ? "disabled" : ""}
               color="success"
-              variant="contained"
               sx={{ fontSize: 10 }}
               onClick={() => primaryAction.action(selectedProperties, selectedOtherCards)}
             >
@@ -193,7 +225,6 @@ const ChooseCards = ({
           <Button
             className={secondaryAction.disabled ? "disabled" : ""}
             color="error"
-            variant="contained"
             sx={{ fontSize: 10 }}
             onClick={secondaryAction.action}
           >

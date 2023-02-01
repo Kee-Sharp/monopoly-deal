@@ -24,21 +24,7 @@ const ColoredText = ({ sentence, coloredWords, color, sx }: ColoredTextProps) =>
       word
     )
   );
-  return (
-    <Typography sx={{ color: "white", ...sx }}>
-      {/* {words.map((word, index) => (
-        <Typography
-          key={index}
-          component="span"
-          sx={{ color: coloredWords.includes(word) ? color : "white" }}
-        >
-          {word}
-          {index === words.length ? "" : " "}
-        </Typography>
-      ))} */}
-      {result}
-    </Typography>
-  );
+  return <Typography sx={{ color: "white", ...sx }}>{result}</Typography>;
 };
 
 export default ColoredText;
