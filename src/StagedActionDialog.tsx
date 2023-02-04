@@ -21,9 +21,10 @@ const StagedActionDialog = ({
   const takingProperties = targetedPlayer.properties.filter((_, index) =>
     takingIndices.includes(index)
   );
-  const givingProperties = currentPlayer.properties.filter((_, index) => index === givingIndex);
+  const givingProperties =
+    currentPlayer.properties?.filter((_, index) => index === givingIndex) ?? [];
   const display = [takingProperties];
-  if (givingIndex) display.unshift(givingProperties);
+  if (givingIndex !== undefined) display.unshift(givingProperties);
   let title = "";
   switch (cardId) {
     case 24:
@@ -55,7 +56,10 @@ const StagedActionDialog = ({
           {display.map((properties, index) => {
             const isLosing = index === display.length - 1;
             return (
-              <Box key={index}>
+              <Box
+                key={index}
+                sx={{ display: "flex", flexDirection: "column", alignItems: "center" }}
+              >
                 <Typography
                   sx={{
                     color: isLosing ? "error.light" : "lightgreen",

@@ -17,7 +17,7 @@ const ColoredText = ({ sentence, coloredWords, color, sx }: ColoredTextProps) =>
   });
   const result = separated.map(word =>
     coloredWords.includes(word) ? (
-      <Typography key={word} fontSize="inherit" component="span" sx={{ color }}>
+      <Typography key={word} fontSize="inherit" fontWeight="medium" component="span" sx={{ color }}>
         {word}
       </Typography>
     ) : (

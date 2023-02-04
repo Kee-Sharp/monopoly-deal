@@ -1,8 +1,9 @@
 import _ from "lodash";
 import { Reducer } from "react";
 import cards from "./cards.json";
-import { colorToColor, defaultCardConfig } from "./constants";
+import { colorToColor, defaultCardConfig, stagesMap } from "./constants";
 import {
+  addWinner,
   partition,
   removeFromArray,
   setValueInArray,
@@ -59,15 +60,19 @@ export interface Player {
 export type GameState = {
   players: Player[];
   deck: TCard[];
+  discard: TCard[];
   messages: { id: string; content: string }[];
+  winner: { player: Player; cards: TCard[] } | null;
 } & ({ gameStarted: false } | { gameStarted: true; currentPlayerId: string });
 
 export const init = (): GameState => {
   return {
     players: [],
     deck: [],
+    discard: [],
     messages: [{ id: "game", content: "Game created" }],
     gameStarted: false,
+    winner: null,
   };
 };
 
@@ -85,6 +90,7 @@ type PayloadAction<T, P = undefined> = P extends undefined ? { type: T } : { typ
 
 export type Payloads =
   | PayloadAction<"addPlayer", { id: string; nickname: string }>
+  | PayloadAction<"removePlayer", string>
   | PayloadAction<"startGame">
   | PayloadAction<
       "playCard",
@@ -131,10 +137,16 @@ const reducer: Reducer<GameState, Payloads> = (state, action) => {
   switch (action.type) {
     case "addPlayer": {
       const { players = [], messages } = state;
-      const color = colors.filter(color => color !== "black" && color !== "brown")[players.length];
+      const playerColors = players.map(({ displayHex }) => displayHex);
+      const displayColors = { ...colorToColor };
+      displayColors["blue"] = "rgb(72, 130, 234)";
+      const color =
+        colors
+          .filter(color => color !== "black" && color !== "brown")
+          .find(color => !playerColors.includes(displayColors[color])) || "blue";
       const newPlayer: Player = {
         ...action.payload,
-        displayHex: colorToColor[color],
+        displayHex: displayColors[color],
         hand: [],
         properties: [],
         money: [],
@@ -149,6 +161,35 @@ const reducer: Reducer<GameState, Payloads> = (state, action) => {
         ...state,
         players: [...players, newPlayer],
         messages: [...messages, { id: "game", content: `${action.payload.nickname} has joined!` }],
+      };
+    }
+    case "removePlayer": {
+      const { players, messages, gameStarted, deck = [] } = state;
+      let currentPlayerIndex;
+      if (gameStarted)
+        currentPlayerIndex = players.findIndex(({ id }) => id === state.currentPlayerId);
+      const [
+        newPlayers,
+        [{ hand = [], properties = [], money = [], setModifiers = {}, nickname }],
+      ] = partition(players, ({ id }) => id !== action.payload);
+      let newDeck = deck;
+      if (gameStarted)
+        newDeck = _.shuffle([
+          ...deck,
+          ...hand,
+          ...properties,
+          ...money,
+          ...Object.values(setModifiers).flat(),
+        ]);
+      return {
+        ...state,
+        players: newPlayers,
+        deck: newDeck,
+        messages: [...messages, { id: "game", content: `${nickname} has left the game` }],
+        ...(gameStarted &&
+          newPlayers.length && {
+            currentPlayerId: newPlayers[(currentPlayerIndex ?? 0) % newPlayers.length].id,
+          }),
       };
     }
     case "startGame": {
@@ -169,10 +210,11 @@ const reducer: Reducer<GameState, Payloads> = (state, action) => {
         deck: newDeck,
         gameStarted: true,
         currentPlayerId: newPlayers[0].id,
+        winner: null,
       };
     }
     case "playCard": {
-      const { deck, players, messages } = state;
+      const { deck = [], players, messages, discard = [] } = state;
       const {
         playerId,
         index,
@@ -259,7 +301,7 @@ const reducer: Reducer<GameState, Payloads> = (state, action) => {
               }
               // sly deal
               case 26: {
-                if (!targetedPlayer || !targetedIndex) return state;
+                if (!targetedPlayer || targetedIndex === undefined) return state;
                 newMessageContent = `${nickname} took a card from ${targetedPlayer.nickname}`;
                 stagedAction = {
                   cardId: card.id,
@@ -272,7 +314,8 @@ const reducer: Reducer<GameState, Payloads> = (state, action) => {
               }
               // forced deal
               case 27: {
-                if (!targetedPlayer || !targetedIndex || !ownIndex) return state;
+                if (!targetedPlayer || targetedIndex === undefined || ownIndex === undefined)
+                  return state;
                 newMessageContent = `${nickname} swapped cards with ${targetedPlayer.nickname}`;
                 stagedAction = {
                   cardId: card.id,
@@ -337,6 +380,7 @@ const reducer: Reducer<GameState, Payloads> = (state, action) => {
         case "rent": {
           if (asMoney) {
             newMoney = [...money, card];
+            newMessageContent = `${nickname} played card as money`;
             break;
           } else if (amountToCharge) {
             const skipRentModifier = card.type === "action";
@@ -374,9 +418,13 @@ const reducer: Reducer<GameState, Payloads> = (state, action) => {
         const fullSets = updateFullSets(properties);
         return { ...player, properties, fullSets };
       });
-      return {
+      return addWinner({
         ...state,
         deck: newDeck,
+        discard:
+          (card.type === "action" || card.type === "rent") && !asMoney
+            ? [...discard, card]
+            : discard,
         players: newPlayers,
         messages: [
           ...messages,
@@ -385,7 +433,7 @@ const reducer: Reducer<GameState, Payloads> = (state, action) => {
             content: newMessageContent || `${nickname} played ${JSON.stringify(card)}`,
           },
         ],
-      };
+      });
     }
     case "payRent": {
       const { players, messages } = state;
@@ -433,16 +481,16 @@ const reducer: Reducer<GameState, Payloads> = (state, action) => {
         properties: sortCards([...chargingRentProperties, ...sendingProperties]),
         money: [...chargingRentMoney, ...sendingMoney],
       });
-      newPlayers = newPlayers.map(({ properties, ...rest }) => ({
+      newPlayers = newPlayers.map(({ properties = [], ...rest }) => ({
         ...rest,
         properties,
         fullSets: updateFullSets(properties),
       }));
-      return {
+      return addWinner({
         ...state,
         players: newPlayers,
         messages: [...messages, { id: "game", content: `${nickname} paid rent` }],
-      };
+      });
     }
     case "giveUpCards": {
       const { players, messages } = state;
@@ -457,11 +505,12 @@ const reducer: Reducer<GameState, Payloads> = (state, action) => {
       let newPlayers = players;
       const currentPlayer = players[currentPlayerIndex];
       const targetedPlayer = players[targetedPlayerIndex];
-      const [targetedSending, targetedStaying] = partition(targetedPlayer.properties, (_, index) =>
-        takingIndices.includes(index)
+      const [targetedSending, targetedStaying] = partition(
+        targetedPlayer.properties ?? [],
+        (_, index) => takingIndices.includes(index)
       );
       const [currentSending, currentStaying] = partition(
-        currentPlayer.properties,
+        currentPlayer.properties ?? [],
         (_, index) => givingIndex === index
       );
       let newCurrentSetModifies = currentPlayer.setModifiers ?? {};
@@ -492,23 +541,24 @@ const reducer: Reducer<GameState, Payloads> = (state, action) => {
         const fullSets = updateFullSets(properties);
         return { ...player, properties, fullSets };
       });
-      return {
+      return addWinner({
         ...state,
         players: newPlayers,
         messages: [...messages, { id: "game", content: newMessageContent }],
-      };
+      });
     }
     case "sayNo": {
-      const { players, messages } = state;
+      const { players, messages, discard = [] } = state;
       const { isTarget, currentPlayerId, targetedPlayerId } = action.payload;
       const currentPlayerIndex = players.findIndex(({ id }) => id === currentPlayerId);
       const currentPlayer = players[currentPlayerIndex];
       const targetedPlayerIndex = players.findIndex(({ id }) => id === targetedPlayerId);
       const targetedPlayer = players[targetedPlayerIndex];
       let newPlayers = players;
+      let newHand, noCard;
       if (isTarget) {
         const noIndex = targetedPlayer.hand.findIndex(({ id }) => id === 25);
-        const [newHand] = removeFromArray(targetedPlayer.hand, noIndex);
+        [newHand, noCard] = removeFromArray(targetedPlayer.hand, noIndex);
         // add the targeted player to the current player's no list
         newPlayers = setValueInArray(newPlayers, currentPlayerIndex, {
           ...currentPlayer,
@@ -520,7 +570,7 @@ const reducer: Reducer<GameState, Payloads> = (state, action) => {
         });
       } else {
         const noIndex = currentPlayer.hand.findIndex(({ id }) => id === 25);
-        const [newHand] = removeFromArray(currentPlayer.hand, noIndex);
+        [newHand, noCard] = removeFromArray(currentPlayer.hand, noIndex);
         // cancel out the no from the targeted player by removing them from the current player's no list
         newPlayers = setValueInArray(newPlayers, currentPlayerIndex, {
           ...currentPlayer,
@@ -531,6 +581,7 @@ const reducer: Reducer<GameState, Payloads> = (state, action) => {
       return {
         ...state,
         players: newPlayers,
+        discard: [...discard, noCard],
         messages: [
           ...messages,
           {
@@ -596,10 +647,18 @@ const reducer: Reducer<GameState, Payloads> = (state, action) => {
         console.error(`Unable to find player with id: ${playerId}`);
         return state;
       }
-      const { properties, nickname, fullSets, setModifiers } = currentPlayer;
+      const { properties, nickname, fullSets = {}, setModifiers = {} } = currentPlayer;
       const card = properties[index];
       const color = card.actingColor ?? (card.color as SolidColor);
-      if (fullSets[color] && setModifiers[color]?.length) return state;
+      // can only flip wildcards if you have more than necessary in the set
+      if (fullSets[color] && setModifiers[color]?.length) {
+        const amountInSet = properties.reduce(
+          (total, { actingColor, color: cardColor }) =>
+            actingColor === color || cardColor === color ? total + 1 : total,
+          0
+        );
+        if (amountInSet <= stagesMap[color].length) return state;
+      }
       const newProperties = [...properties];
       newProperties[index] = { ...properties[index], actingColor: destinationColor };
       const newPlayers = setValueInArray(players, currentPlayerIndex, {
@@ -607,36 +666,45 @@ const reducer: Reducer<GameState, Payloads> = (state, action) => {
         properties: newProperties,
         fullSets: updateFullSets(newProperties),
       });
-      return {
+      return addWinner({
         ...state,
         players: newPlayers,
         messages: [...messages, { id: "game", content: `${nickname} flipped wildcard` }],
-      };
+      });
     }
     case "endTurn": {
-      const { players, deck, messages } = state;
+      const { players, deck = [], messages, discard = [] } = state;
       const currentPlayerIndex = action.payload;
       const currentPlayer = players[action.payload];
       const newPlayers = [...players];
       newPlayers[currentPlayerIndex] = { ...currentPlayer, movesLeft: 0 };
       const nextIndex = (currentPlayerIndex + 1) % players.length;
-      const nextPlayer = newPlayers[nextIndex];
-      const [newCards, newDeck] = takeFirstN(deck, nextPlayer.hand.length ? 2 : 5);
+      const { hand = [], ...rest } = newPlayers[nextIndex];
+      const numberToDraw = hand.length ? 2 : 5;
+      let [newCards, newDeck] = takeFirstN(deck, numberToDraw);
+      let newDiscard = discard;
+      if (newCards.length < numberToDraw) {
+        let additionalCards;
+        [additionalCards, newDeck] = takeFirstN(_.shuffle(discard), numberToDraw - newCards.length);
+        newCards = [...newCards, ...additionalCards];
+        newDiscard = [];
+      }
       newPlayers[nextIndex] = {
-        ...nextPlayer,
-        hand: [...nextPlayer.hand, ...newCards],
+        ...rest,
+        hand: [...hand, ...newCards],
         movesLeft: 3,
       };
       return {
         ...state,
         deck: newDeck,
+        discard: newDiscard,
         players: newPlayers,
         messages: [...messages, { id: "game", content: `${currentPlayer.nickname} ended turn` }],
-        currentPlayerId: nextPlayer.id,
+        currentPlayerId: rest.id,
       };
     }
     case "discardCards": {
-      const { players, messages } = state;
+      const { players, messages, discard = [] } = state;
       const { playerId, selectedCards } = action.payload;
       const currentPlayerIndex = players.findIndex(({ id }) => id === playerId);
       const currentPlayer = players[currentPlayerIndex];
@@ -644,7 +712,7 @@ const reducer: Reducer<GameState, Payloads> = (state, action) => {
         (acc, card, index) => (card ? [...acc, index] : acc),
         []
       );
-      const [, newHand] = partition(currentPlayer.hand, (_, index) =>
+      const [discarding, newHand] = partition(currentPlayer.hand, (_, index) =>
         discardingIndices.includes(index)
       );
       const newPlayers = setValueInArray(players, currentPlayerIndex, {
@@ -655,6 +723,7 @@ const reducer: Reducer<GameState, Payloads> = (state, action) => {
         {
           ...state,
           players: newPlayers,
+          discard: [...discard, ...discarding],
           messages: [
             ...messages,
             {

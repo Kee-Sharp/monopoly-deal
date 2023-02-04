@@ -33,7 +33,7 @@ const StartScreen = ({ onCreateGame, onJoinGame }: StartScreenProps) => {
       >
         Monopoly Deal
       </Typography>
-      <Box sx={{ display: "flex", flexDirection: "column" }}>
+      <Box sx={{ display: "flex", flexDirection: "column", maxWidth: 240, width: "100%" }}>
         <TextField
           value={nickname}
           onChange={e => {

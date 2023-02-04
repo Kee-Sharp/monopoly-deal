@@ -127,7 +127,7 @@ const Board = ({ player, myBoard, isTurn = false, onFlip, onClick, sx }: BoardPr
                 height: "min-content",
                 transformOrigin: "top left",
                 transition: "all 0.2s ease 0s",
-                ":hover": { transform: "scale(1.2)", zIndex: 4 },
+                ":hover": { transform: "scale(1.2)", zIndex: 3 },
               }}
             >
               {(propertiesMap[color] ?? []).map(({ card, originalIndex }, index) => (

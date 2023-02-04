@@ -1,26 +1,48 @@
-import { useState, useEffect, useRef } from "react";
-import { GameState, Payloads, Player, PropertyCard, SolidColor, TCard } from "./gameReducer";
-import { Box, Button, Dialog, Divider, Typography } from "@mui/material";
-import Card from "./Card";
-import { colorToColor, stagesMap } from "./constants";
+import { ChatBubbleOutline, Logout, Menu } from "@mui/icons-material";
+import {
+  Box,
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  Divider,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+  SwipeableDrawer,
+  Typography,
+} from "@mui/material";
+import { useEffect, useRef, useState } from "react";
 import Board from "./Board";
-import { createPropertyMap } from "./utils";
+import Card from "./Card";
 import ChooseCards, { ChooseCardsProps } from "./ChooseCards";
 import ColoredText from "./ColoredText";
+import { colorToColor, stagesMap } from "./constants";
+import { GameState, Payloads, Player, PropertyCard, SolidColor, TCard } from "./gameReducer";
 import StagedActionDialog from "./StagedActionDialog";
+import { createPropertyMap } from "./utils";
 
 interface GameProps {
   clientId: string;
   gameState: GameState;
   dispatch: (payload: Payloads) => Promise<void>;
+  onLeave: () => Promise<void>;
 }
 interface ColorOptions {
   color: SolidColor;
   amountInSet: number;
 }
 
-const Game = ({ clientId, gameState, dispatch }: GameProps) => {
-  const { players, messages, gameStarted } = gameState;
+const iOS = typeof navigator !== "undefined" && /iPad|iPhone|iPod/.test(navigator.userAgent);
+
+const Game = ({ clientId, gameState, dispatch, onLeave }: GameProps) => {
+  const { players, messages, gameStarted, deck = [], discard = [] } = gameState;
+
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
 
   const [chooseColorOptions, setChooseColorOptions] = useState<{
     colorOptions: ColorOptions[];
@@ -88,6 +110,7 @@ const Game = ({ clientId, gameState, dispatch }: GameProps) => {
     displayHex,
     movesLeft,
     nos: currentPlayerNos = [],
+    rentModifier: currentPlayerRentModifier,
   } = players[currentPlayerIndex];
 
   const isThisPlayersTurn = currentPlayerId === id;
@@ -378,7 +401,63 @@ const Game = ({ clientId, gameState, dispatch }: GameProps) => {
   };
 
   return (
-    <Box padding={4} paddingTop={2}>
+    <Box
+      className="custom-scrollbar"
+      sx={{ overflowY: "auto", padding: 4, paddingTop: 0, height: "100vh" }}
+    >
+      <SwipeableDrawer
+        open={isDrawerOpen}
+        onClose={() => setIsDrawerOpen(false)}
+        onOpen={() => setIsDrawerOpen(true)}
+        disableBackdropTransition={!iOS}
+        disableDiscovery={iOS}
+        sx={{ ".MuiPaper-root": { backgroundColor: "grey.900" } }}
+      >
+        <Box sx={{ maxWidth: 200, color: "white" }}>
+          <List>
+            {["Open Chat", "Leave Game"].map((text, isLeave) => {
+              let Icon = ChatBubbleOutline;
+              if (isLeave) Icon = Logout;
+              return (
+                <ListItem key={text}>
+                  <ListItemButton
+                    sx={{ ":hover": { backgroundColor: "rgba(0,0,0,0.25)" } }}
+                    onClick={() => {
+                      if (isLeave) setShowLeaveConfirm(true);
+                    }}
+                  >
+                    <ListItemIcon>
+                      <Icon sx={{ color: "white" }} />
+                    </ListItemIcon>
+                    <ListItemText>{text}</ListItemText>
+                  </ListItemButton>
+                </ListItem>
+              );
+            })}
+          </List>
+        </Box>
+      </SwipeableDrawer>
+      <Dialog
+        open={showLeaveConfirm}
+        onClose={() => setShowLeaveConfirm(false)}
+        sx={{ "& .MuiPaper-root": { maxWidth: 400 } }}
+      >
+        <DialogContent>
+          <DialogContentText>Are you sure you want to leave the game?</DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowLeaveConfirm(false)}>Cancel</Button>
+          <Button
+            color="error"
+            onClick={() => {
+              setShowLeaveConfirm(false);
+              onLeave();
+            }}
+          >
+            Leave Game
+          </Button>
+        </DialogActions>
+      </Dialog>
       {chooseCards && <ChooseCards {...chooseCards} />}
       {chooseColorOptions && (
         <Dialog open sx={{ borderRadius: 4 }} onClose={() => setChooseColorOptions(undefined)}>
@@ -593,6 +672,38 @@ const Game = ({ clientId, gameState, dispatch }: GameProps) => {
         </Dialog>
       )}
       <Box
+        sx={{
+          marginX: -4,
+          marginBottom: 2,
+          padding: 2,
+          display: "flex",
+          alignItems: "center",
+          backgroundColor: "black",
+          position: "sticky",
+          top: 0,
+          zIndex: 5,
+        }}
+      >
+        <Box sx={{ flex: 1, display: "flex", alignItems: "center" }}>
+          <Menu onClick={() => setIsDrawerOpen(true)} sx={{ color: "white" }} />
+        </Box>
+        <Box className="perfect-center" sx={{ flex: 1, flexDirection: "column" }}>
+          <ColoredText
+            sentence={`${deck.length} card${deck.length === 1 ? "" : "s"} in deck`}
+            coloredWords={[`${deck.length}`]}
+            color="success.main"
+            sx={{ fontSize: 12 }}
+          />
+          <ColoredText
+            sentence={`${discard.length} card${discard.length === 1 ? "" : "s"} discarded`}
+            coloredWords={[`${discard.length}`]}
+            color="error.main"
+            sx={{ fontSize: 10 }}
+          />
+        </Box>
+        <Box sx={{ flex: 1 }} />
+      </Box>
+      <Box
         className="custom-scrollbar"
         sx={{ display: "flex", overflowX: "auto", paddingBottom: 0.75 }}
       >
@@ -688,7 +799,7 @@ const Game = ({ clientId, gameState, dispatch }: GameProps) => {
                 display: "flex",
                 flexDirection: "column",
                 justifyContent: isThisPlayersTurn ? "space-between" : "center",
-                paddingY: moreThan7 ? 3 : 4,
+                paddingY: 3,
                 maxWidth: 70,
               }}
             >
@@ -702,17 +813,21 @@ const Game = ({ clientId, gameState, dispatch }: GameProps) => {
                   sx={{ fontSize: 10, marginBottom: 1 }}
                 />
                 {!!playersWithRent.length && (
-                  <Typography fontSize="10px" color="white" sx={{ marginBottom: 1 }}>
-                    <Typography
-                      fontSize="10px"
-                      fontWeight="bold"
-                      component="span"
-                      color="error.main"
-                    >{`${playersWithRent.length} player${
+                  <ColoredText
+                    sentence={`${playersWithRent.length} player${
                       playersWithRent.length === 1 ? "" : "s"
-                    } `}</Typography>
-                    {`need${playersWithRent.length === 1 ? "s" : ""} to pay RENT`}
-                  </Typography>
+                    } need${playersWithRent.length === 1 ? "s" : ""} to pay rent`}
+                    coloredWords={[
+                      `${playersWithRent.length} player${playersWithRent.length === 1 ? "" : "s"}`,
+                    ]}
+                    color="error.main"
+                    sx={{ fontSize: 10, marginBottom: 1 }}
+                  />
+                )}
+                {currentPlayerRentModifier !== 1 && (
+                  <Typography
+                    sx={{ color: "error.main", fontSize: 12, marginBottom: 1 }}
+                  >{`${currentPlayerRentModifier}x Rent`}</Typography>
                 )}
                 <ColoredText
                   sentence={`${nextPlayer.nickname} is up next`}
@@ -754,6 +869,7 @@ const Game = ({ clientId, gameState, dispatch }: GameProps) => {
                             sentence="You have more than 7 cards. Click to discard cards, or close this modal and play cards (if you can)"
                             coloredWords={["Click to discard cards"]}
                             color="red"
+                            sx={{ fontSize: 12 }}
                           />
                         ),
                         clickBehavior: "toggle",
@@ -860,7 +976,7 @@ const Game = ({ clientId, gameState, dispatch }: GameProps) => {
                     }
                   }}
                   sx={{
-                    ":not(:first-of-type)": { marginLeft: "calc(-1 * var(--size)*0.72)" },
+                    ":not(:first-of-type)": { marginLeft: "calc(-1 * var(--size)*0.68)" },
                     flexShrink: 0,
                   }}
                 />
@@ -869,6 +985,7 @@ const Game = ({ clientId, gameState, dispatch }: GameProps) => {
           </Box>
         </Box>
       </Box>
+      <Box sx={{ height: 200 }} />
     </Box>
   );
 };

@@ -1,5 +1,5 @@
 import { stagesMap } from "./constants";
-import type { FullSets, Player, PropertyMap, SolidColor } from "./gameReducer";
+import type { FullSets, Player, PropertyMap, SolidColor, TCard, GameState } from "./gameReducer";
 
 export const takeFirstN = <T>(arr: T[], n: number): [firstN: T[], remaining: T[]] => {
   return [arr.slice(0, n), arr.slice(n)];
@@ -46,4 +46,39 @@ export const partition = <T>(arr: T[], predicate: (element: T, index: number) =>
     },
     [[], []]
   );
+};
+
+export const addWinner = (state: GameState): GameState => {
+  const { players, messages } = state;
+  let winner = null;
+  for (let player of Object.values(players)) {
+    const { fullSets = {}, properties = [] } = player;
+    const propertyMap = createPropertyMap(properties);
+    if (Object.keys(propertyMap).length === 10) {
+      const cards = Object.values(propertyMap).map(arr => arr[0]);
+      winner = { player, cards };
+      break;
+    }
+    const full = (Object.keys(fullSets) as SolidColor[]).filter(color => fullSets[color]);
+    if (full.length >= 3) {
+      const colorsToUse = full.slice(0, 3);
+      const cards = colorsToUse.reduce<TCard[]>(
+        (acc, color) => [...acc, ...propertyMap[color].slice(0, stagesMap[color].length)],
+        []
+      );
+      winner = { player, cards };
+      break;
+    }
+  }
+  return {
+    ...state,
+    players: winner ? [] : players,
+    winner,
+    messages: [
+      ...messages,
+      ...(winner ? [{ id: "game", content: `${winner.player.nickname} won!` }] : []),
+    ],
+    gameStarted: !winner,
+    ...(!!winner && { currentPlayerId: null }),
+  } as GameState;
 };

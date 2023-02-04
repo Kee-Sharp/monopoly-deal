@@ -1,4 +1,17 @@
-import ImportExportIcon from "@mui/icons-material/ImportExport";
+import {
+  SwapVert,
+  CreditCard,
+  Shuffle,
+  AssignmentLate,
+  Cancel,
+  House,
+  Apartment,
+  KeyboardDoubleArrowDown,
+  CurrencyExchange,
+  Celebration,
+  Filter2,
+  ShoppingCartCheckout,
+} from "@mui/icons-material";
 import { Box, Typography } from "@mui/material";
 import type { Color, TCard } from "./gameReducer";
 import { SystemStyleObject } from "@mui/system";
@@ -18,7 +31,7 @@ const Card = ({ card, canFlip = true, onFlip, onClick, sx, selected }: CardProps
   const { type, value } = card;
   let content: React.ReactNode = null;
   let backgroundColor = "black";
-  let otherStyles: React.CSSProperties = {};
+  let otherStyles: SystemStyleObject<Theme> = {};
   let secondValueColor: string | undefined;
   switch (type) {
     case "money": {
@@ -59,7 +72,7 @@ const Card = ({ card, canFlip = true, onFlip, onClick, sx, selected }: CardProps
             }
           }}
         >
-          <ImportExportIcon sx={{ fontSize: 12 }} />
+          <SwapVert sx={{ fontSize: 12 }} />
         </Box>
       );
       if (isDual) {
@@ -142,11 +155,11 @@ const Card = ({ card, canFlip = true, onFlip, onClick, sx, selected }: CardProps
       otherStyles = { justifyContent: "space-between" };
       break;
     }
-    // @ts-ignore
     case "rent": {
+      const { description } = card;
       content = (
         <>
-          <Box />
+          <Box sx={{ height: 25 }} />
           <Box
             className="perfect-center"
             sx={{
@@ -161,7 +174,9 @@ const Card = ({ card, canFlip = true, onFlip, onClick, sx, selected }: CardProps
           >
             RENT
           </Box>
-          <Box />
+          <Box className="perfect-center" sx={{ height: 25, paddingX: 0.25, zIndex: 1 }}>
+            <Typography sx={{ fontSize: 6, color: "white" }}>{description}</Typography>
+          </Box>
           {Array.isArray(card.color) && (
             <Box
               sx={{
@@ -180,6 +195,87 @@ const Card = ({ card, canFlip = true, onFlip, onClick, sx, selected }: CardProps
         ...(card.color === "rainbow" && { backgroundImage: rainbowBackground }),
       };
       backgroundColor = Array.isArray(card.color) ? colorToColor[card.color[0]] : "black";
+      break;
+    }
+    case "action": {
+      const { id, title, description } = card;
+      let Icon = CreditCard;
+      let decorationColor = "white";
+      switch (id) {
+        case 24: {
+          Icon = AssignmentLate;
+          decorationColor = "rgb(206, 146, 244)";
+          break;
+        }
+        case 25: {
+          Icon = Cancel;
+          decorationColor = "rgb(71, 138, 234)";
+          break;
+        }
+        case 26: {
+          Icon = KeyboardDoubleArrowDown;
+          decorationColor = "rgb(153, 140, 136)";
+          break;
+        }
+        case 27: {
+          Icon = Shuffle;
+          decorationColor = "rgb(193, 193, 193)";
+          break;
+        }
+        case 28: {
+          Icon = CurrencyExchange;
+          decorationColor = "rgb(49, 178, 158)";
+          break;
+        }
+        case 29: {
+          Icon = Apartment;
+          decorationColor = "rgb(86, 183, 118)";
+          break;
+        }
+        case 30: {
+          Icon = House;
+          decorationColor = "rgb(119, 173, 172)";
+          break;
+        }
+        case 31: {
+          Icon = Celebration;
+          decorationColor = "rgb(242, 139, 195)";
+          break;
+        }
+        case 32: {
+          Icon = Filter2;
+          decorationColor = "rgb(229, 206, 108)";
+          break;
+        }
+        case 33: {
+          Icon = ShoppingCartCheckout;
+          decorationColor = "rgb(249, 168, 80)";
+        }
+      }
+      otherStyles = { "--color": decorationColor };
+      backgroundColor = "grey.900";
+      content = (
+        <>
+          <Box sx={{ padding: 0.5, paddingTop: 2 }}>
+            <Typography sx={{ fontSize: 12, color: decorationColor, lineHeight: 1 }}>
+              {title}
+            </Typography>
+          </Box>
+          <Box
+            className="perfect-center"
+            sx={{
+              color: "white",
+              zIndex: 1,
+              flex: 1,
+            }}
+          >
+            <Icon sx={{ color: decorationColor, fontSize: 28 }} />
+          </Box>
+          <Box className="perfect-center" sx={{ height: 25, paddingX: 0.25, zIndex: 1 }}>
+            <Typography sx={{ fontSize: 6, color: "white" }}>{description}</Typography>
+          </Box>
+        </>
+      );
       break;
     }
     default: {
@@ -211,22 +307,23 @@ const Card = ({ card, canFlip = true, onFlip, onClick, sx, selected }: CardProps
       <Box
         className="perfect-center"
         sx={{
+          "--color": "white",
           flexDirection: "column",
           color: "white",
           backgroundColor,
           borderRadius: 2,
           fontSize: 12,
-          border: "4px solid white",
           position: "relative",
           overflow: "hidden",
           userSelect: "none",
+          border: "4px solid var(--color)",
           height: "100%",
           ...otherStyles,
         }}
       >
         <Box
           sx={{
-            backgroundColor: "white",
+            backgroundColor: "var(--color)",
             width: "calc(var(--size)/3)",
             height: "calc(var(--size)/3)",
             position: "absolute",
@@ -240,7 +337,7 @@ const Card = ({ card, canFlip = true, onFlip, onClick, sx, selected }: CardProps
           sx={{
             position: "absolute",
             backgroundColor,
-            border: "2px solid white",
+            border: "2px solid var(--color)",
             borderRadius: "50%",
             fontSize: 8,
             width: "calc(var(--size)*1/4)",

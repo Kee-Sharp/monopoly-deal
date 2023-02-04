@@ -1,10 +1,21 @@
 import { initializeApp } from "firebase/app";
-import { child, get, getDatabase, onValue, push, ref, runTransaction } from "firebase/database";
+import {
+  child,
+  get,
+  getDatabase,
+  onValue,
+  ref,
+  remove,
+  runTransaction,
+  set,
+} from "firebase/database";
+import { nanoid } from "nanoid";
 import { useLayoutEffect, useRef, useState } from "react";
 import Game from "./Game";
 import gameReducer, { GameState, init, Payloads } from "./gameReducer";
 import StartScreen from "./StartScreen";
 import WaitingRoom from "./WaitingRoom";
+import WinScreen from "./WinScreen";
 
 const firebaseConfig = {
   apiKey: process.env.REACT_APP_API_KEY,
@@ -25,6 +36,7 @@ function App() {
   const clientId = generateClientId();
   const [gameState, setGameState] = useState(init());
   const [roomId, setRoomId] = useState("");
+  const [nickname, setNickname] = useState(() => sessionStorage.getItem("nickname") ?? "");
   const unsubscribeRef = useRef<Function | null>(null);
 
   const isInRoom = async () => {
@@ -50,9 +62,9 @@ function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clientId]);
 
-  const createRoom = (nickname: string) => {
-    const newRoomKey = push(child(dbRef, "rooms"), init()).key;
-    if (!newRoomKey) return;
+  const createRoom = async (nickname: string) => {
+    const newRoomKey = nanoid(8);
+    await set(child(dbRef, `rooms/${newRoomKey}`), init());
     joinRoom(nickname, newRoomKey);
   };
 
@@ -62,6 +74,8 @@ function App() {
     const room = roomSnapshot.val() as GameState | null;
     if (!room) return false;
     setRoomId(roomId);
+    setNickname(nickname);
+    sessionStorage.setItem("nickname", nickname);
     let newState = room;
     if (!alreadyInRoom) {
       let successfullyAddedUser = false;
@@ -79,6 +93,7 @@ function App() {
       }
     }
     setGameState(newState);
+    unsubscribeRef.current?.();
     const unsubscribe = onValue(roomRef, snapshot => {
       const data = snapshot.val() as GameState | null;
       setGameState(data ?? init());
@@ -95,7 +110,25 @@ function App() {
     });
   };
 
-  const hasJoinedRoom = !!gameState.players.find(({ id }) => id === clientId);
+  const leaveRoom = async (alreadyLeft = false) => {
+    if (!alreadyLeft) await dispatch({ type: "removePlayer", payload: clientId });
+    const roomRef = child(dbRef, `rooms/${roomId}`);
+    const gameSnapshot = await get(roomRef);
+    const state = gameSnapshot.val() as GameState | null;
+    if (!state?.players?.length && !alreadyLeft) remove(roomRef);
+    unsubscribeRef.current?.();
+    setGameState(init());
+  };
+
+  const hasJoinedRoom = !!gameState.players?.find(({ id }) => id === clientId);
+  if (!hasJoinedRoom && gameState.winner)
+    return (
+      <WinScreen
+        winner={gameState.winner}
+        onLeave={() => leaveRoom(true)}
+        onRejoin={() => joinRoom(nickname, roomId)}
+      />
+    );
   if (!hasJoinedRoom) return <StartScreen onCreateGame={createRoom} onJoinGame={joinRoom} />;
   if (!gameState.gameStarted)
     return (
@@ -103,10 +136,11 @@ function App() {
         roomId={roomId}
         players={gameState.players}
         onStart={() => dispatch({ type: "startGame" })}
+        onLeave={leaveRoom}
       />
     );
 
-  return <Game clientId={clientId} gameState={gameState} dispatch={dispatch} />;
+  return <Game clientId={clientId} gameState={gameState} dispatch={dispatch} onLeave={leaveRoom} />;
 }
 
 const generateClientId = () => {

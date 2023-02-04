@@ -6,16 +6,17 @@ interface WaitingRoomProps {
   roomId: string;
   players: Player[];
   onStart: () => void;
+  onLeave: () => void;
 }
 
-const WaitingRoom = ({ roomId, players, onStart }: WaitingRoomProps) => {
+const WaitingRoom = ({ roomId, players, onStart, onLeave }: WaitingRoomProps) => {
   const [copied, setCopied] = useState(false);
   return (
     <Box
       sx={{
         display: "flex",
         flexDirection: "column",
-        alignItems: "flex-start",
+        alignItems: "center",
         margin: 4,
       }}
     >
@@ -48,15 +49,28 @@ const WaitingRoom = ({ roomId, players, onStart }: WaitingRoomProps) => {
           </Typography>
         </Typography>
       </Box>
-      <Typography color="white">Friends who have joined</Typography>
+      <Typography color="white">Friends who have joined:</Typography>
       {players.map(({ id, displayHex, nickname }) => (
         <Typography key={id} sx={{ color: displayHex }}>
           {nickname}
         </Typography>
       ))}
-      <Button onClick={onStart} sx={{ marginTop: 4 }} disabled={players.length <= 1}>
-        Start Game
-      </Button>
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-around",
+          marginTop: 8,
+          gap: 2,
+        }}
+      >
+        <Button className={players.length <= 1 ? "disabled" : ""} onClick={onStart}>
+          Start Game
+        </Button>
+        <Button color="error" onClick={onLeave}>
+          Leave Room
+        </Button>
+      </Box>
     </Box>
   );
 };
