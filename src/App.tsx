@@ -16,6 +16,7 @@ import gameReducer, { GameState, init, Payloads } from "./gameReducer";
 import StartScreen from "./StartScreen";
 import WaitingRoom from "./WaitingRoom";
 import WinScreen from "./WinScreen";
+import cards from "./cards.json";
 
 const firebaseConfig = {
   apiKey: process.env.REACT_APP_API_KEY,
@@ -38,6 +39,7 @@ function App() {
   const [roomId, setRoomId] = useState("");
   const [nickname, setNickname] = useState(() => sessionStorage.getItem("nickname") ?? "");
   const unsubscribeRef = useRef<Function | null>(null);
+  const [images, setImages] = useState<string[]>([]);
 
   const isInRoom = async () => {
     const roomsRef = child(dbRef, "rooms");
@@ -99,6 +101,8 @@ function App() {
       setGameState(data ?? init());
     });
     unsubscribeRef.current = unsubscribe;
+    const imageModules = await Promise.all(cards.map(({ id }) => import(`../public/${id}.png`)));
+    setImages(imageModules.map(m => m.default));
     return true;
   };
 
@@ -139,8 +143,15 @@ function App() {
         onLeave={leaveRoom}
       />
     );
-
-  return <Game clientId={clientId} gameState={gameState} dispatch={dispatch} onLeave={leaveRoom} />;
+  return (
+    <Game
+      clientId={clientId}
+      gameState={gameState}
+      dispatch={dispatch}
+      onLeave={leaveRoom}
+      images={images}
+    />
+  );
 }
 
 const generateClientId = () => {

@@ -30,6 +30,7 @@ interface GameProps {
   gameState: GameState;
   dispatch: (payload: Payloads) => Promise<void>;
   onLeave: () => Promise<void>;
+  images: string[];
 }
 interface ColorOptions {
   color: SolidColor;
@@ -38,8 +39,11 @@ interface ColorOptions {
 
 const iOS = typeof navigator !== "undefined" && /iPad|iPhone|iPod/.test(navigator.userAgent);
 
-const Game = ({ clientId, gameState, dispatch, onLeave }: GameProps) => {
+const Game = ({ clientId, gameState, dispatch, onLeave, images }: GameProps) => {
   const { players, messages, gameStarted, deck = [], discard = [] } = gameState;
+
+  const [draggingElement, setDraggingElement] = useState<number>();
+  const [isOverBoard, setIsOverBoard] = useState(false);
 
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
@@ -210,6 +214,40 @@ const Game = ({ clientId, gameState, dispatch, onLeave }: GameProps) => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rentDue, hand]);
+
+  const handleDragStart = (
+    event: React.DragEvent<HTMLDivElement>,
+    handIndex: number,
+    id: number
+  ) => {
+    setDraggingElement(handIndex);
+    const cardElement = document.getElementById(`${id}-${handIndex}`);
+    if (!cardElement) return;
+    const dragPreview = document.createElement("div");
+    const emptyDiv = document.createElement("div");
+    emptyDiv.id = "empty-div";
+    dragPreview.id = "drag-ghost";
+    dragPreview.style.backgroundImage = `url(${images[id]})`;
+    dragPreview.style.backgroundSize = "cover";
+    dragPreview.style.position = "absolute";
+    dragPreview.style.width = `77px`;
+    dragPreview.style.height = `112.5px`;
+    dragPreview.style.zIndex = "4";
+    dragPreview.style.pointerEvents = "none";
+    dragPreview.style.transform = "scale(1.2)";
+    dragPreview.style.left = `calc(${event.clientX}px - 38.5px)`;
+    dragPreview.style.top = `calc(${event.clientY}px - 20px)`;
+
+    document.body.appendChild(dragPreview);
+    document.body.appendChild(emptyDiv);
+    document.addEventListener("drag", function (event) {
+      const { clientX, clientY } = event;
+      dragPreview.style.display = clientX === 0 && clientY === 0 ? "none" : "block";
+      dragPreview.style.left = `calc(${clientX}px - 38.5px)`;
+      dragPreview.style.top = `calc(${clientY}px - 20px)`;
+    });
+    event.dataTransfer.setDragImage(emptyDiv, 0, 0);
+  };
 
   const playActionOrRentCard = (card: TCard, index: number) => {
     const playCard = (
@@ -398,6 +436,61 @@ const Game = ({ clientId, gameState, dispatch, onLeave }: GameProps) => {
           playCard();
       }
     }
+  };
+
+  const playAnyCard = (card: TCard, index: number) => {
+    if (!thisPlayerMovesLeft) return;
+    if (card.type === "property" && card.color === "rainbow") {
+      if (!properties.length) {
+        // Display alert that you can't play a rainbow without properties
+        return;
+      }
+      setChooseColorOptions({
+        colorOptions: allColorOptions,
+        onChoose: color => {
+          dispatch({
+            type: "playCard",
+            payload: { playerId: id, index, destinationColor: color },
+          });
+        },
+      });
+    } else if (card.type === "property" || card.type === "money") {
+      dispatch({
+        type: "playCard",
+        payload: {
+          playerId: id,
+          index,
+          destinationColor:
+            card.type === "property" && Array.isArray(card.color) ? card.color[0] : undefined,
+        },
+      });
+    } else {
+      setChooseActionOrMoney({
+        action: () => {
+          playActionOrRentCard(card, index);
+          setChooseActionOrMoney(undefined);
+        },
+        money: () => {
+          dispatch({
+            type: "playCard",
+            payload: { playerId: id, index, asMoney: true },
+          });
+          setChooseActionOrMoney(undefined);
+        },
+      });
+    }
+  };
+
+  const cleanupDrag = () => {
+    setIsOverBoard(false);
+    setDraggingElement(undefined);
+    const ghost = document.getElementById("drag-ghost");
+    if (ghost?.parentNode) ghost.parentNode.removeChild(ghost);
+    const emptyDiv = document.getElementById("empty-div");
+    if (emptyDiv?.parentNode) emptyDiv.parentNode.removeChild(emptyDiv);
+  };
+  const dragExit = () => {
+    setIsOverBoard(false);
   };
 
   return (
@@ -719,37 +812,58 @@ const Game = ({ clientId, gameState, dispatch, onLeave }: GameProps) => {
           />
         ))}
       </Box>
-      <Board
-        player={thisPlayer}
-        myBoard
-        isTurn={isThisPlayersTurn}
-        onFlip={(card, index) => {
-          if (card.type === "property" && card.color === "rainbow") {
-            setChooseColorOptions({
-              colorOptions: allColorOptions,
-              onChoose: chosenColor =>
-                dispatch({
-                  type: "flipPropertyCard",
-                  payload: {
-                    playerId: id,
-                    index,
-                    destinationColor: chosenColor,
-                  },
-                }),
-            });
-          } else if (card.type === "property" && Array.isArray(card.color)) {
-            dispatch({
-              type: "flipPropertyCard",
-              payload: {
-                playerId: id,
-                index,
-                destinationColor: card.color.filter(color => color !== card.actingColor)[0],
-              },
-            });
-          }
+      <div
+        onDragOver={e => {
+          e.preventDefault();
+          setIsOverBoard(true);
         }}
-        sx={{ marginTop: 1 }}
-      />
+        onDragExit={dragExit}
+        onDragLeave={dragExit}
+        onDrop={e => {
+          e.preventDefault();
+          if (draggingElement === undefined) return;
+          const card = hand[draggingElement];
+          playAnyCard(card, draggingElement);
+          cleanupDrag();
+        }}
+        style={{ marginTop: 1 }}
+      >
+        <Board
+          player={thisPlayer}
+          myBoard
+          isTurn={isThisPlayersTurn}
+          onFlip={(card, index) => {
+            if (card.type === "property" && card.color === "rainbow") {
+              setChooseColorOptions({
+                colorOptions: allColorOptions,
+                onChoose: chosenColor =>
+                  dispatch({
+                    type: "flipPropertyCard",
+                    payload: {
+                      playerId: id,
+                      index,
+                      destinationColor: chosenColor,
+                    },
+                  }),
+              });
+            } else if (card.type === "property" && Array.isArray(card.color)) {
+              dispatch({
+                type: "flipPropertyCard",
+                payload: {
+                  playerId: id,
+                  index,
+                  destinationColor: card.color.filter(color => color !== card.actingColor)[0],
+                },
+              });
+            }
+          }}
+          sx={
+            isOverBoard
+              ? { backgroundColor: isThisPlayersTurn ? "lightgreen" : "red", pointerEvents: "none" }
+              : undefined
+          }
+        />
+      </div>
       {/* Hand Section */}
       <Box
         sx={{
@@ -921,65 +1035,27 @@ const Game = ({ clientId, gameState, dispatch, onLeave }: GameProps) => {
             }}
           >
             {hand.map((card, index) => {
+              const id = `${card.id}-${index}`;
               return (
-                <Card
-                  key={`${card.id}-${index}`}
-                  card={card}
-                  onFlip={() =>
-                    dispatch({
-                      type: "flipHandCard",
-                      payload: { playerId: id, index },
-                    })
-                  }
-                  onClick={card => {
-                    if (!thisPlayerMovesLeft) return;
-                    if (card.type === "property" && card.color === "rainbow") {
-                      if (!properties.length) {
-                        // Display alert that you can't play a rainbow without properties
-                        return;
-                      }
-                      setChooseColorOptions({
-                        colorOptions: allColorOptions,
-                        onChoose: color => {
-                          dispatch({
-                            type: "playCard",
-                            payload: { playerId: id, index, destinationColor: color },
-                          });
-                        },
-                      });
-                    } else if (card.type === "property" || card.type === "money") {
+                <div
+                  key={id}
+                  id={id}
+                  className="hand-card"
+                  draggable={true}
+                  onDragStart={e => handleDragStart(e, index, card.id)}
+                  onDragEnd={cleanupDrag}
+                >
+                  <Card
+                    card={card}
+                    onFlip={() =>
                       dispatch({
-                        type: "playCard",
-                        payload: {
-                          playerId: id,
-                          index,
-                          destinationColor:
-                            card.type === "property" && Array.isArray(card.color)
-                              ? card.color[0]
-                              : undefined,
-                        },
-                      });
-                    } else {
-                      setChooseActionOrMoney({
-                        action: () => {
-                          playActionOrRentCard(card, index);
-                          setChooseActionOrMoney(undefined);
-                        },
-                        money: () => {
-                          dispatch({
-                            type: "playCard",
-                            payload: { playerId: id, index, asMoney: true },
-                          });
-                          setChooseActionOrMoney(undefined);
-                        },
-                      });
+                        type: "flipHandCard",
+                        payload: { playerId: id, index },
+                      })
                     }
-                  }}
-                  sx={{
-                    ":not(:first-of-type)": { marginLeft: "calc(-1 * var(--size)*0.68)" },
-                    flexShrink: 0,
-                  }}
-                />
+                    sx={draggingElement === index ? { opacity: 0.2 } : undefined}
+                  />
+                </div>
               );
             })}
           </Box>

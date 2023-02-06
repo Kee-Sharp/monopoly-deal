@@ -144,6 +144,7 @@ const Card = ({ card, canFlip = true, onFlip, onClick, sx, selected }: CardProps
                 marginBottom: 0,
                 marginTop: "-4px",
                 paddingY: 0.5,
+                paddingX: 1.5,
                 width: "100%",
               }),
             }}
@@ -195,6 +196,7 @@ const Card = ({ card, canFlip = true, onFlip, onClick, sx, selected }: CardProps
         ...(card.color === "rainbow" && { backgroundImage: rainbowBackground }),
       };
       backgroundColor = Array.isArray(card.color) ? colorToColor[card.color[0]] : "black";
+      if (Array.isArray(card.color)) secondValueColor = colorToColor[card.color[1]];
       break;
     }
     case "action": {
@@ -256,7 +258,13 @@ const Card = ({ card, canFlip = true, onFlip, onClick, sx, selected }: CardProps
       backgroundColor = "grey.900";
       content = (
         <>
-          <Box sx={{ padding: 0.5, paddingTop: 2 }}>
+          <Box
+            sx={{
+              paddingX: 0.5,
+              paddingTop: [26, 29, 30, 33].includes(card.id) ? 3 : 2.5,
+              marginBottom: [26, 29, 30, 33].includes(card.id) ? 1 : 0.5,
+            }}
+          >
             <Typography sx={{ fontSize: 12, color: decorationColor, lineHeight: 1 }}>
               {title}
             </Typography>
@@ -269,7 +277,9 @@ const Card = ({ card, canFlip = true, onFlip, onClick, sx, selected }: CardProps
               flex: 1,
             }}
           >
-            <Icon sx={{ color: decorationColor, fontSize: 28 }} />
+            <Icon
+              sx={{ color: decorationColor, fontSize: [26, 29, 30].includes(card.id) ? 30 : 28 }}
+            />
           </Box>
           <Box className="perfect-center" sx={{ height: 25, paddingX: 0.25, zIndex: 1 }}>
             <Typography sx={{ fontSize: 6, color: "white" }}>{description}</Typography>
@@ -324,12 +334,13 @@ const Card = ({ card, canFlip = true, onFlip, onClick, sx, selected }: CardProps
         <Box
           sx={{
             backgroundColor: "var(--color)",
-            width: "calc(var(--size)/3)",
-            height: "calc(var(--size)/3)",
+            width: "calc(var(--size)*0.38)",
+            height: "calc(var(--size)*0.38)",
             position: "absolute",
             top: 0,
             left: 0,
             transform: "translate(-50%, -50%) rotate(45deg)",
+            transformOrigin: "center center",
           }}
         />
         <Box
@@ -340,10 +351,10 @@ const Card = ({ card, canFlip = true, onFlip, onClick, sx, selected }: CardProps
             border: "2px solid var(--color)",
             borderRadius: "50%",
             fontSize: 8,
-            width: "calc(var(--size)*1/4)",
-            height: "calc(var(--size)*1/4)",
-            top: -2,
-            left: -2,
+            width: "calc(var(--size)/4)",
+            height: "calc(var(--size)/4)",
+            top: -1,
+            left: -1,
             flexDirection: "column",
             overflow: "hidden",
           }}
@@ -354,7 +365,7 @@ const Card = ({ card, canFlip = true, onFlip, onClick, sx, selected }: CardProps
                 position: "absolute",
                 bottom: 0,
                 width: "100%",
-                height: "calc((var(--size)*1/8) - 2px)",
+                height: "calc((var(--size)/8) - 2px)",
                 backgroundColor: secondValueColor,
               }}
             ></Box>

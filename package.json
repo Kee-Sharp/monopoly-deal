@@ -52,6 +52,8 @@
     ]
   },
   "devDependencies": {
-    "gh-pages": "^4.0.0"
+    "downloadjs": "^1.4.7",
+    "gh-pages": "^4.0.0",
+    "html-to-image": "^1.11.11"
   }
 }

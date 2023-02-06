@@ -79,3 +79,10 @@ code {
   inset: 0px;
   z-index: 4;
 }
+
+.hand-card {
+  flex-shrink: 0;
+}
+.hand-card:not(:first-of-type) {
+  margin-left: calc(-1 * var(--size)*0.68);
+}
