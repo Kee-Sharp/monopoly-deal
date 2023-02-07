@@ -43,6 +43,7 @@ const Game = ({ clientId, gameState, dispatch, onLeave, images }: GameProps) => 
   const { players, messages, gameStarted, deck = [], discard = [] } = gameState;
 
   const [draggingElement, setDraggingElement] = useState<number>();
+  const draggingElementRef = useRef<number | null>(null);
   const [isOverBoard, setIsOverBoard] = useState(false);
 
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -221,8 +222,6 @@ const Game = ({ clientId, gameState, dispatch, onLeave, images }: GameProps) => 
     id: number
   ) => {
     setDraggingElement(handIndex);
-    const cardElement = document.getElementById(`${id}-${handIndex}`);
-    if (!cardElement) return;
     const dragPreview = document.createElement("div");
     const emptyDiv = document.createElement("div");
     emptyDiv.id = "empty-div";
@@ -247,6 +246,49 @@ const Game = ({ clientId, gameState, dispatch, onLeave, images }: GameProps) => 
       dragPreview.style.top = `calc(${clientY}px - 20px)`;
     });
     event.dataTransfer.setDragImage(emptyDiv, 0, 0);
+  };
+  const handleTouchStart = (
+    event: React.TouchEvent<HTMLDivElement>,
+    handIndex: number,
+    id: number
+  ) => {
+    const cardElement = document.getElementById(`${id}-${handIndex}`);
+    if (!cardElement) return;
+    setDraggingElement(handIndex);
+    draggingElementRef.current = handIndex;
+    const dragPreview = document.createElement("div");
+    dragPreview.id = "touch-ghost";
+    dragPreview.style.backgroundImage = `url(${images[id]})`;
+    dragPreview.style.backgroundSize = "cover";
+    dragPreview.style.position = "absolute";
+    dragPreview.style.width = `77px`;
+    dragPreview.style.height = `112.5px`;
+    dragPreview.style.zIndex = "4";
+    dragPreview.style.pointerEvents = "none";
+    dragPreview.style.transform = "scale(1.2)";
+    dragPreview.style.left = `calc(${event.touches[0].clientX}px - 38.5px)`;
+    dragPreview.style.top = `calc(${event.touches[0].clientY}px - 20px)`;
+    dragPreview.style.display = "none";
+
+    document.body.appendChild(dragPreview);
+    cardElement.addEventListener("touchmove", handleTouchMove, { passive: false });
+  };
+
+  const handleTouchMove = (event: TouchEvent) => {
+    if (event.cancelable) event.preventDefault();
+    event.stopPropagation();
+    const dragPreview = document.getElementById("touch-ghost");
+    if (!dragPreview || draggingElementRef.current === null) return;
+    const { clientX, clientY } = event.touches[0];
+    const isOffScreen = clientX === 0 && clientY === 0;
+    dragPreview.style.display = isOffScreen ? "none" : "block";
+    dragPreview.style.left = `calc(${clientX}px - 38.5px)`;
+    dragPreview.style.top = `calc(${clientY}px - 20px)`;
+    if (!isOffScreen) {
+      const overElements = document.elementsFromPoint(clientX, clientY);
+      const overIds = overElements.map(e => e.id);
+      setIsOverBoard(overIds.includes("myBoard") && !overIds.includes("hand"));
+    }
   };
 
   const playActionOrRentCard = (card: TCard, index: number) => {
@@ -484,10 +526,13 @@ const Game = ({ clientId, gameState, dispatch, onLeave, images }: GameProps) => 
   const cleanupDrag = () => {
     setIsOverBoard(false);
     setDraggingElement(undefined);
+    draggingElementRef.current = null;
     const ghost = document.getElementById("drag-ghost");
     if (ghost?.parentNode) ghost.parentNode.removeChild(ghost);
     const emptyDiv = document.getElementById("empty-div");
     if (emptyDiv?.parentNode) emptyDiv.parentNode.removeChild(emptyDiv);
+    const touchGhost = document.getElementById("touch-ghost");
+    if (touchGhost?.parentNode) touchGhost.parentNode.removeChild(touchGhost);
   };
   const dragExit = () => {
     setIsOverBoard(false);
@@ -813,6 +858,7 @@ const Game = ({ clientId, gameState, dispatch, onLeave, images }: GameProps) => 
         ))}
       </Box>
       <div
+        id="myBoard"
         onDragOver={e => {
           e.preventDefault();
           setIsOverBoard(true);
@@ -866,6 +912,7 @@ const Game = ({ clientId, gameState, dispatch, onLeave, images }: GameProps) => 
       </div>
       {/* Hand Section */}
       <Box
+        id="hand"
         sx={{
           backgroundColor: "grey.900",
           marginTop: 3,
@@ -1044,6 +1091,18 @@ const Game = ({ clientId, gameState, dispatch, onLeave, images }: GameProps) => 
                   draggable={true}
                   onDragStart={e => handleDragStart(e, index, card.id)}
                   onDragEnd={cleanupDrag}
+                  onTouchStart={e => handleTouchStart(e, index, card.id)}
+                  onTouchEnd={() => {
+                    cleanupDrag();
+                    const thisElement = document.getElementById(id);
+                    // @ts-ignore
+                    thisElement?.removeEventListener("touchmove", handleTouchMove, {
+                      passive: false,
+                    });
+                    if (isOverBoard && draggingElement !== undefined) {
+                      playAnyCard(hand[draggingElement], draggingElement);
+                    }
+                  }}
                 >
                   <Card
                     card={card}

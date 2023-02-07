@@ -334,8 +334,8 @@ const Card = ({ card, canFlip = true, onFlip, onClick, sx, selected }: CardProps
         <Box
           sx={{
             backgroundColor: "var(--color)",
-            width: "calc(var(--size)*0.38)",
-            height: "calc(var(--size)*0.38)",
+            width: "calc(var(--size)*0.34)",
+            height: "calc(var(--size)*0.34)",
             position: "absolute",
             top: 0,
             left: 0,
