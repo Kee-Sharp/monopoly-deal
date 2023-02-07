@@ -131,7 +131,8 @@ export type Payloads =
       }
     >
   | PayloadAction<"endTurn", number>
-  | PayloadAction<"discardCards", { playerId: string; selectedCards: TCard[] }>;
+  | PayloadAction<"discardCards", { playerId: string; selectedCards: TCard[] }>
+  | PayloadAction<"sendMessage", { id: string; content: string }>;
 
 const reducer: Reducer<GameState, Payloads> = (state, action) => {
   switch (action.type) {
@@ -736,6 +737,10 @@ const reducer: Reducer<GameState, Payloads> = (state, action) => {
         },
         { type: "endTurn", payload: currentPlayerIndex }
       );
+    }
+    case "sendMessage": {
+      const { messages = [] } = state;
+      return { ...state, messages: [...messages, action.payload] };
     }
     default: {
       return state;

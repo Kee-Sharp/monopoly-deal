@@ -1,4 +1,4 @@
-import { ChatBubbleOutline, Logout, Menu } from "@mui/icons-material";
+import { Chat, MarkUnreadChatAlt, Info, Logout, Menu } from "@mui/icons-material";
 import {
   Box,
   Button,
@@ -7,14 +7,18 @@ import {
   DialogContent,
   DialogContentText,
   Divider,
+  IconButton,
   List,
   ListItem,
   ListItemButton,
   ListItemIcon,
   ListItemText,
+  Stack,
   SwipeableDrawer,
+  TextField,
   Typography,
 } from "@mui/material";
+import _ from "lodash";
 import { useEffect, useRef, useState } from "react";
 import Board from "./Board";
 import Card from "./Card";
@@ -48,6 +52,11 @@ const Game = ({ clientId, gameState, dispatch, onLeave, images }: GameProps) => 
 
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const lastMessageRef = useRef<HTMLDivElement>(null);
+  const [chatMessage, setChatMessage] = useState("");
+  const [lastMessageIndex, setLastMessageIndex] = useState(0);
+  const [unread, setUnread] = useState(false);
 
   const [chooseColorOptions, setChooseColorOptions] = useState<{
     colorOptions: ColorOptions[];
@@ -68,8 +77,21 @@ const Game = ({ clientId, gameState, dispatch, onLeave, images }: GameProps) => 
   const cardContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    console.log(messages.at(-1)?.content);
+    lastMessageRef.current?.scrollIntoView();
+    const newMessages = messages.slice(lastMessageIndex);
+    if (!isChatOpen && newMessages.some(({ id }) => id !== "game")) setUnread(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages, messages.length]);
+
+  useEffect(() => {
+    if (isChatOpen) {
+      lastMessageRef.current?.scrollIntoView();
+      setUnread(false);
+    } else {
+      setLastMessageIndex(messages.length);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isChatOpen]);
 
   useEffect(() => {
     const cardContainer = cardContainerRef.current;
@@ -538,6 +560,8 @@ const Game = ({ clientId, gameState, dispatch, onLeave, images }: GameProps) => 
     setIsOverBoard(false);
   };
 
+  const debouncedScrollIntoView = _.debounce(() => lastMessageRef.current?.scrollIntoView(), 300);
+
   return (
     <Box
       className="custom-scrollbar"
@@ -553,8 +577,8 @@ const Game = ({ clientId, gameState, dispatch, onLeave, images }: GameProps) => 
       >
         <Box sx={{ maxWidth: 200, color: "white" }}>
           <List>
-            {["Open Chat", "Leave Game"].map((text, isLeave) => {
-              let Icon = ChatBubbleOutline;
+            {["How To Play", "Leave Game"].map((text, isLeave) => {
+              let Icon = Info;
               if (isLeave) Icon = Logout;
               return (
                 <ListItem key={text}>
@@ -574,6 +598,111 @@ const Game = ({ clientId, gameState, dispatch, onLeave, images }: GameProps) => 
             })}
           </List>
         </Box>
+      </SwipeableDrawer>
+      <SwipeableDrawer
+        anchor="right"
+        open={isChatOpen}
+        onClose={() => setIsChatOpen(false)}
+        onOpen={() => setIsChatOpen(true)}
+        disableBackdropTransition={!iOS}
+        sx={{ ".MuiPaper-root": { backgroundColor: "grey.900" } }}
+      >
+        <Stack
+          sx={{
+            maxWidth: 200,
+            color: "white",
+            padding: 1,
+            paddingRight: 0,
+            overflow: "hidden",
+          }}
+        >
+          <Stack
+            className="custom-scrollbar"
+            sx={{ gap: 1, overflowY: "auto", overflowX: "hidden", paddingRight: 1 }}
+          >
+            {messages.map(({ id: messageId, content }, index) => {
+              const {
+                nickname: messagingPlayerNickname = messageId,
+                displayHex: messagingPlayerDisplayHex = "rgb(51, 51, 51)",
+              } = playersMap[messageId] ?? {};
+              const isContentSmall = messagingPlayerNickname.length - 1 >= content.length;
+              return (
+                <Stack
+                  key={index}
+                  sx={{
+                    alignSelf: id === messageId ? "flex-end" : "flex-start",
+                    ...(isContentSmall && { alignItems: "center" }),
+                  }}
+                >
+                  {messageId !== "game" && (
+                    <Typography
+                      sx={{
+                        marginLeft: 0.75,
+                        marginBottom: "-2px",
+                        padding: 0.5,
+                        borderRadius: 1,
+                        borderBottomLeftRadius: 0,
+                        borderBottomRightRadius: 0,
+                        border: `2px solid ${messagingPlayerDisplayHex}`,
+                        width: "fit-content",
+                        fontSize: 6,
+                        backgroundColor: messagingPlayerDisplayHex,
+                        ...(isContentSmall && {
+                          marginLeft: 0,
+                          borderBottomLeftRadius: "4px",
+                          borderBottomRightRadius: "4px",
+                        }),
+                      }}
+                    >
+                      {messagingPlayerNickname}
+                    </Typography>
+                  )}
+                  <Typography
+                    sx={{
+                      padding: 1,
+                      borderRadius: 2,
+                      border: `2px solid ${messagingPlayerDisplayHex}`,
+                      width: "fit-content",
+                      fontSize: 8,
+                    }}
+                  >
+                    {content}
+                  </Typography>
+                </Stack>
+              );
+            })}
+            <div ref={lastMessageRef} />
+          </Stack>
+          <TextField
+            value={chatMessage}
+            onChange={e => {
+              setChatMessage(e.target.value);
+              debouncedScrollIntoView();
+            }}
+            onKeyUp={e => {
+              if ((e.key === "Enter" || e.key === "Return") && chatMessage) {
+                dispatch({ type: "sendMessage", payload: { id, content: chatMessage } });
+                setChatMessage("");
+              }
+            }}
+            placeholder="write message"
+            size="small"
+            color="secondary"
+            sx={{
+              marginRight: 1,
+              "& .MuiOutlinedInput-root": {
+                borderRadius: 0,
+                "& fieldset": {
+                  borderColor: "grey.400",
+                },
+                "&:hover fieldset": {
+                  borderColor: "grey.200",
+                },
+              },
+            }}
+            inputProps={{ sx: { color: "grey.400", fontSize: 12 } }}
+          />
+        </Stack>
       </SwipeableDrawer>
       <Dialog
         open={showLeaveConfirm}
@@ -823,7 +952,9 @@ const Game = ({ clientId, gameState, dispatch, onLeave, images }: GameProps) => 
         }}
       >
         <Box sx={{ flex: 1, display: "flex", alignItems: "center" }}>
-          <Menu onClick={() => setIsDrawerOpen(true)} sx={{ color: "white" }} />
+          <IconButton onClick={() => setIsDrawerOpen(true)} color="secondary">
+            <Menu />
+          </IconButton>
         </Box>
         <Box className="perfect-center" sx={{ flex: 1, flexDirection: "column" }}>
           <ColoredText
@@ -839,7 +970,11 @@ const Game = ({ clientId, gameState, dispatch, onLeave, images }: GameProps) => 
             sx={{ fontSize: 10 }}
           />
         </Box>
-        <Box sx={{ flex: 1 }} />
+        <Box sx={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
+          <IconButton onClick={() => setIsChatOpen(true)} color="secondary">
+            {unread ? <MarkUnreadChatAlt /> : <Chat />}
+          </IconButton>
+        </Box>
       </Box>
       <Box
         className="custom-scrollbar"
