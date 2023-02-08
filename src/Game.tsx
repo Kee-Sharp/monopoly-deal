@@ -585,7 +585,14 @@ const Game = ({ clientId, gameState, dispatch, onLeave, images }: GameProps) => 
                   <ListItemButton
                     sx={{ ":hover": { backgroundColor: "rgba(0,0,0,0.25)" } }}
                     onClick={() => {
-                      if (isLeave) setShowLeaveConfirm(true);
+                      if (isLeave) {
+                        setShowLeaveConfirm(true);
+                      } else {
+                        window.open(
+                          "https://monopolydealrules.com/index.php?page=general",
+                          "_blank"
+                        );
+                      }
                     }}
                   >
                     <ListItemIcon>
@@ -605,6 +612,7 @@ const Game = ({ clientId, gameState, dispatch, onLeave, images }: GameProps) => 
         onClose={() => setIsChatOpen(false)}
         onOpen={() => setIsChatOpen(true)}
         disableBackdropTransition={!iOS}
+        disableSwipeToOpen={false}
         sx={{ ".MuiPaper-root": { backgroundColor: "grey.900" } }}
       >
         <Stack
@@ -614,11 +622,12 @@ const Game = ({ clientId, gameState, dispatch, onLeave, images }: GameProps) => 
             padding: 1,
             paddingRight: 0,
             overflow: "hidden",
+            height: "100%",
           }}
         >
           <Stack
             className="custom-scrollbar"
-            sx={{ gap: 1, overflowY: "auto", overflowX: "hidden", paddingRight: 1 }}
+            sx={{ gap: 1, overflowY: "auto", overflowX: "hidden", paddingRight: 1, flex: 1 }}
           >
             {messages.map(({ id: messageId, content }, index) => {
               const {
