@@ -1,16 +1,23 @@
 {
   "files": {
     "main.css": "/monopoly-deal/static/css/main.f86b580f.css",
-    "main.js": "/monopoly-deal/static/js/main.aeaac9bb.js",
+    "main.js": "/monopoly-deal/static/js/main.30299459.js",
     "static/js/63.ffeec6ef.chunk.js": "/monopoly-deal/static/js/63.ffeec6ef.chunk.js",
     "static/js/174.09da051f.chunk.js": "/monopoly-deal/static/js/174.09da051f.chunk.js",
     "static/js/744.e1445026.chunk.js": "/monopoly-deal/static/js/744.e1445026.chunk.js",
+    "static/js/56.a04172ee.chunk.js": "/monopoly-deal/static/js/56.a04172ee.chunk.js",
     "static/js/118.cca5971b.chunk.js": "/monopoly-deal/static/js/118.cca5971b.chunk.js",
+    "static/js/962.2f424dc3.chunk.js": "/monopoly-deal/static/js/962.2f424dc3.chunk.js",
     "static/js/471.73830657.chunk.js": "/monopoly-deal/static/js/471.73830657.chunk.js",
-    "static/js/748.e1556477.chunk.js": "/monopoly-deal/static/js/748.e1556477.chunk.js",
+    "static/js/748.05d34b93.chunk.js": "/monopoly-deal/static/js/748.05d34b93.chunk.js",
+    "static/js/589.d52f6ea9.chunk.js": "/monopoly-deal/static/js/589.d52f6ea9.chunk.js",
+    "static/js/434.054e2724.chunk.js": "/monopoly-deal/static/js/434.054e2724.chunk.js",
     "static/js/709.73af38d2.chunk.js": "/monopoly-deal/static/js/709.73af38d2.chunk.js",
+    "static/js/608.4c8d7f1b.chunk.js": "/monopoly-deal/static/js/608.4c8d7f1b.chunk.js",
     "static/js/405.c1f91fbb.chunk.js": "/monopoly-deal/static/js/405.c1f91fbb.chunk.js",
+    "static/js/162.dc3642b0.chunk.js": "/monopoly-deal/static/js/162.dc3642b0.chunk.js",
     "static/js/217.36f2737e.chunk.js": "/monopoly-deal/static/js/217.36f2737e.chunk.js",
+    "static/js/968.52bd8435.chunk.js": "/monopoly-deal/static/js/968.52bd8435.chunk.js",
     "static/js/706.d3aa5dad.chunk.js": "/monopoly-deal/static/js/706.d3aa5dad.chunk.js",
     "static/js/860.d5e64593.chunk.js": "/monopoly-deal/static/js/860.d5e64593.chunk.js",
     "static/js/585.9170e880.chunk.js": "/monopoly-deal/static/js/585.9170e880.chunk.js",
@@ -47,11 +54,11 @@
     "static/media/monopoly_man.png": "/monopoly-deal/static/media/monopoly_man.a388665565ac743636a5.png",
     "index.html": "/monopoly-deal/index.html",
     "main.f86b580f.css.map": "/monopoly-deal/static/css/main.f86b580f.css.map",
-    "main.aeaac9bb.js.map": "/monopoly-deal/static/js/main.aeaac9bb.js.map",
+    "main.30299459.js.map": "/monopoly-deal/static/js/main.30299459.js.map",
     "787.05ed6596.chunk.js.map": "/monopoly-deal/static/js/787.05ed6596.chunk.js.map"
   },
   "entrypoints": [
     "static/css/main.f86b580f.css",
-    "static/js/main.aeaac9bb.js"
+    "static/js/main.30299459.js"
   ]
 }
