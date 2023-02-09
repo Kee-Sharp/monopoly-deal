@@ -46,10 +46,12 @@ const CardConfig = ({
     };
     window.addEventListener("resize", handleResize);
     const handleOrientationChange = () => recalculateNum(window);
-    window.screen.orientation.addEventListener("change", handleOrientationChange);
+    // eslint-disable-next-line no-restricted-globals
+    screen.orientation.addEventListener("change", handleOrientationChange);
     return () => {
       window.removeEventListener("resize", handleResize);
-      window.screen.orientation.removeEventListener("change", handleOrientationChange);
+      // eslint-disable-next-line no-restricted-globals
+      screen.orientation.removeEventListener("change", handleOrientationChange);
     };
   }, []);
 
