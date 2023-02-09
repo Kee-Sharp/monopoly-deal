@@ -1,7 +1,7 @@
 {
   "files": {
     "main.css": "/monopoly-deal/static/css/main.f86b580f.css",
-    "main.js": "/monopoly-deal/static/js/main.9f96f5bd.js",
+    "main.js": "/monopoly-deal/static/js/main.5e6820d9.js",
     "static/js/63.ffeec6ef.chunk.js": "/monopoly-deal/static/js/63.ffeec6ef.chunk.js",
     "static/js/174.09da051f.chunk.js": "/monopoly-deal/static/js/174.09da051f.chunk.js",
     "static/js/744.e1445026.chunk.js": "/monopoly-deal/static/js/744.e1445026.chunk.js",
@@ -54,11 +54,11 @@
     "static/media/monopoly_man.png": "/monopoly-deal/static/media/monopoly_man.a388665565ac743636a5.png",
     "index.html": "/monopoly-deal/index.html",
     "main.f86b580f.css.map": "/monopoly-deal/static/css/main.f86b580f.css.map",
-    "main.9f96f5bd.js.map": "/monopoly-deal/static/js/main.9f96f5bd.js.map",
+    "main.5e6820d9.js.map": "/monopoly-deal/static/js/main.5e6820d9.js.map",
     "787.05ed6596.chunk.js.map": "/monopoly-deal/static/js/787.05ed6596.chunk.js.map"
   },
   "entrypoints": [
     "static/css/main.f86b580f.css",
-    "static/js/main.9f96f5bd.js"
+    "static/js/main.5e6820d9.js"
   ]
 }
