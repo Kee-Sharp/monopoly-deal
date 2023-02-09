@@ -12,8 +12,13 @@ interface CardConfigProps {
   onSave: (config: number[]) => void;
   onCancel: () => void;
 }
-
 const defaultConfig = defaultCardConfig.slice(24, 34);
+const isIOS =
+  ["iPad Simulator", "iPhone Simulator", "iPod Simulator", "iPad", "iPhone", "iPod"].includes(
+    navigator.platform
+  ) ||
+  // iPad on iOS 13 detection
+  (navigator.userAgent.includes("Mac") && "ontouchend" in document);
 
 const CardConfig = ({
   initialConfig = defaultConfig,
@@ -30,16 +35,22 @@ const CardConfig = ({
   const [numPerRow, setNumPerRow] = useState<number>(0);
 
   useLayoutEffect(() => {
-    const availableSpace = window.innerWidth - 64;
-    const n = Math.floor(availableSpace / 120);
-    setNumPerRow(n);
-    const handleResize = (event: UIEvent) => {
-      const availableSpace = (event.target as Window).innerWidth - 64;
+    const recalculateNum = (win: Window) => {
+      const availableSpace = win.innerWidth - 64;
       const n = Math.floor(availableSpace / 120);
       setNumPerRow(n);
     };
+    recalculateNum(window);
+    const handleResize = (event: UIEvent) => {
+      recalculateNum(event.target as Window);
+    };
     window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
+    const handleOrientationChange = () => recalculateNum(window);
+    window.screen.orientation.addEventListener("change", handleOrientationChange);
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      window.screen.orientation.removeEventListener("change", handleOrientationChange);
+    };
   }, []);
 
   return (
@@ -84,7 +95,10 @@ const CardConfig = ({
                 defaultValue={initialConfig[index]}
                 disabled={!canEditConfig}
                 value={configValues[index]}
-                onChange={(_, newValue) => setValueAtIndex(newValue as number, index)}
+                onChange={(event, newValue) => {
+                  if (isIOS && event.type === "mousedown") return;
+                  setValueAtIndex(newValue as number, index);
+                }}
                 step={1}
                 marks={[...Array(13)].map((_, value) => ({
                   value,
