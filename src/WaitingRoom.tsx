@@ -20,7 +20,7 @@ const WaitingRoom = ({ roomId, players, onStart, onLeave, onShowConfig }: Waitin
         alignItems: "center",
         padding: 4,
         paddingBottom: 5,
-        height: "100vh",
+        height: "80vh",
       }}
     >
       <Box sx={{ display: "flex", marginBottom: 4, alignItems: "center" }}>

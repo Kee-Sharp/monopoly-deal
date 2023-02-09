@@ -2,7 +2,7 @@ import Card from "./Card";
 import cards from "./cards.json";
 import type { TCard } from "./gameReducer";
 import { defaultCardConfig } from "./constants";
-import { useState } from "react";
+import { useState, useLayoutEffect } from "react";
 import { Box, Button, Slider } from "@mui/material";
 import { ArrowDropUp } from "@mui/icons-material";
 
@@ -27,6 +27,21 @@ const CardConfig = ({
     newValues[index] = value;
     setConfigValues(newValues);
   };
+  const [numPerRow, setNumPerRow] = useState<number>(0);
+
+  useLayoutEffect(() => {
+    const availableSpace = window.innerWidth - 64;
+    const n = Math.floor(availableSpace / 120);
+    setNumPerRow(n);
+    const handleResize = (event: UIEvent) => {
+      const availableSpace = (event.target as Window).innerWidth - 64;
+      const n = Math.floor(availableSpace / 120);
+      setNumPerRow(n);
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   return (
     <div style={{ padding: 32, paddingTop: 4 }}>
       <div style={{ display: "flex", justifyContent: "center" }}>
@@ -34,7 +49,7 @@ const CardConfig = ({
           canEditConfig ? "Customize" : "View"
         } the frequency of each card`}</h2>
       </div>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 16, marginBottom: 32 }}>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: numPerRow ? 0 : 16, marginBottom: 32 }}>
         {cards
           .filter(({ type }) => type === "action")
           .map((card, index) => (
@@ -46,6 +61,7 @@ const CardConfig = ({
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
+                flexBasis: numPerRow ? `calc(100% / ${numPerRow})` : "auto",
               }}
             >
               <Card card={card as TCard} sx={{ ":hover": {} }} />
