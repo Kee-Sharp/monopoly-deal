@@ -12,11 +12,17 @@ const DrawCards = () => {
         {cards.map((card, index) => (
           <div key={index} id={`${index}`} style={{ flexShrink: 0, padding: 4 }}>
             <Card
-              card={card as TCard}
+              card={
+                {
+                  ...card,
+                  ...(card.type === "property" &&
+                    Array.isArray(card.color) && { actingColor: card.color[1] }),
+                } as TCard
+              }
               sx={{ zoom: 1.2, ":hover": {} }}
               onClick={() => {
                 toPng(document.getElementById(`${index}`)!).then(dataUrl => {
-                  download(dataUrl, `${index}.png`);
+                  download(dataUrl, `${index}-flipped.png`);
                 });
               }}
             />

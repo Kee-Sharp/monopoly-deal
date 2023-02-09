@@ -1,4 +1,4 @@
-import { Chat, MarkUnreadChatAlt, Info, Logout, Menu } from "@mui/icons-material";
+import { Chat, Info, Logout, MarkUnreadChatAlt, Menu, Settings } from "@mui/icons-material";
 import {
   Box,
   Button,
@@ -22,9 +22,10 @@ import _ from "lodash";
 import { useEffect, useRef, useState } from "react";
 import Board from "./Board";
 import Card from "./Card";
+import cards from "./cards.json";
 import ChooseCards, { ChooseCardsProps } from "./ChooseCards";
 import ColoredText from "./ColoredText";
-import { colorToColor, stagesMap } from "./constants";
+import { colorToColor, flippableWildcards, stagesMap } from "./constants";
 import { GameState, Payloads, Player, PropertyCard, SolidColor, TCard } from "./gameReducer";
 import StagedActionDialog from "./StagedActionDialog";
 import { createPropertyMap } from "./utils";
@@ -34,7 +35,9 @@ interface GameProps {
   gameState: GameState;
   dispatch: (payload: Payloads) => Promise<void>;
   onLeave: () => Promise<void>;
+  onShowConfig: () => void;
   images: string[];
+  flippedImages: string[];
 }
 interface ColorOptions {
   color: SolidColor;
@@ -43,7 +46,15 @@ interface ColorOptions {
 
 const iOS = typeof navigator !== "undefined" && /iPad|iPhone|iPod/.test(navigator.userAgent);
 
-const Game = ({ clientId, gameState, dispatch, onLeave, images }: GameProps) => {
+const Game = ({
+  clientId,
+  gameState,
+  dispatch,
+  onLeave,
+  onShowConfig,
+  images,
+  flippedImages,
+}: GameProps) => {
   const { players, messages, gameStarted, deck = [], discard = [] } = gameState;
 
   const [draggingElement, setDraggingElement] = useState<number>();
@@ -248,7 +259,12 @@ const Game = ({ clientId, gameState, dispatch, onLeave, images }: GameProps) => 
     const emptyDiv = document.createElement("div");
     emptyDiv.id = "empty-div";
     dragPreview.id = "drag-ghost";
-    dragPreview.style.backgroundImage = `url(${images[id]})`;
+    const flippableIndex = flippableWildcards.indexOf(id);
+    // @ts-ignore
+    const isFlipped = cards[id].color?.[0] !== hand[handIndex].color?.[0];
+    dragPreview.style.backgroundImage = `url(${
+      flippableIndex !== -1 && isFlipped ? flippedImages[flippableIndex] : images[id]
+    })`;
     dragPreview.style.backgroundSize = "cover";
     dragPreview.style.position = "absolute";
     dragPreview.style.width = `77px`;
@@ -280,7 +296,12 @@ const Game = ({ clientId, gameState, dispatch, onLeave, images }: GameProps) => 
     draggingElementRef.current = handIndex;
     const dragPreview = document.createElement("div");
     dragPreview.id = "touch-ghost";
-    dragPreview.style.backgroundImage = `url(${images[id]})`;
+    const flippableIndex = flippableWildcards.indexOf(id);
+    // @ts-ignore
+    const isFlipped = cards[id].color?.[0] !== hand[handIndex].color?.[0];
+    dragPreview.style.backgroundImage = `url(${
+      flippableIndex !== -1 && isFlipped ? flippedImages[flippableIndex] : images[id]
+    })`;
     dragPreview.style.backgroundSize = "cover";
     dragPreview.style.position = "absolute";
     dragPreview.style.width = `77px`;
@@ -577,23 +598,28 @@ const Game = ({ clientId, gameState, dispatch, onLeave, images }: GameProps) => 
       >
         <Box sx={{ maxWidth: 200, color: "white" }}>
           <List>
-            {["How To Play", "Leave Game"].map((text, isLeave) => {
+            {["How To Play", "View Card Frequency", "Leave Game"].map((text, index) => {
               let Icon = Info;
-              if (isLeave) Icon = Logout;
+              let onClick;
+              switch (index) {
+                case 0:
+                  Icon = Info;
+                  onClick = () =>
+                    window.open("https://monopolydealrules.com/index.php?page=general", "_blank");
+                  break;
+                case 1:
+                  Icon = Settings;
+                  onClick = onShowConfig;
+                  break;
+                case 2:
+                  Icon = Logout;
+                  onClick = () => setShowLeaveConfirm(true);
+              }
               return (
                 <ListItem key={text}>
                   <ListItemButton
                     sx={{ ":hover": { backgroundColor: "rgba(0,0,0,0.25)" } }}
-                    onClick={() => {
-                      if (isLeave) {
-                        setShowLeaveConfirm(true);
-                      } else {
-                        window.open(
-                          "https://monopolydealrules.com/index.php?page=general",
-                          "_blank"
-                        );
-                      }
-                    }}
+                    onClick={onClick}
                   >
                     <ListItemIcon>
                       <Icon sx={{ color: "white" }} />
@@ -633,7 +659,7 @@ const Game = ({ clientId, gameState, dispatch, onLeave, images }: GameProps) => 
               const {
                 nickname: messagingPlayerNickname = messageId,
                 displayHex: messagingPlayerDisplayHex = "rgb(51, 51, 51)",
-              } = playersMap[messageId] ?? {};
+              } = playersMap[messageId as string] ?? {};
               const isContentSmall = messagingPlayerNickname.length - 1 >= content.length;
               return (
                 <Stack
@@ -1253,7 +1279,7 @@ const Game = ({ clientId, gameState, dispatch, onLeave, images }: GameProps) => 
                     onFlip={() =>
                       dispatch({
                         type: "flipHandCard",
-                        payload: { playerId: id, index },
+                        payload: { playerId: thisPlayer.id, index },
                       })
                     }
                     sx={draggingElement === index ? { opacity: 0.2 } : undefined}

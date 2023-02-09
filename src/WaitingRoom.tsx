@@ -7,9 +7,10 @@ interface WaitingRoomProps {
   players: Player[];
   onStart: () => void;
   onLeave: () => void;
+  onShowConfig: () => void;
 }
 
-const WaitingRoom = ({ roomId, players, onStart, onLeave }: WaitingRoomProps) => {
+const WaitingRoom = ({ roomId, players, onStart, onLeave, onShowConfig }: WaitingRoomProps) => {
   const [copied, setCopied] = useState(false);
   return (
     <Box
@@ -17,7 +18,9 @@ const WaitingRoom = ({ roomId, players, onStart, onLeave }: WaitingRoomProps) =>
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        margin: 4,
+        padding: 4,
+        paddingBottom: 5,
+        height: "100vh",
       }}
     >
       <Box sx={{ display: "flex", marginBottom: 4, alignItems: "center" }}>
@@ -49,18 +52,22 @@ const WaitingRoom = ({ roomId, players, onStart, onLeave }: WaitingRoomProps) =>
           </Typography>
         </Typography>
       </Box>
-      <Typography color="white">Friends who have joined:</Typography>
-      {players.map(({ id, displayHex, nickname }) => (
-        <Typography key={id} sx={{ color: displayHex }}>
-          {nickname}
-        </Typography>
-      ))}
+      <Box sx={{ flex: 1 }}>
+        <Typography color="white">Friends who have joined:</Typography>
+        {players.map(({ id, displayHex, nickname }) => (
+          <Typography key={id} sx={{ color: displayHex }}>
+            {nickname}
+          </Typography>
+        ))}
+      </Box>
+      <Button color="secondary" onClick={onShowConfig} sx={{ margin: 2 }}>
+        Card Frequency
+      </Button>
       <Box
         sx={{
           display: "flex",
           alignItems: "center",
           justifyContent: "space-around",
-          marginTop: 8,
           gap: 2,
         }}
       >

@@ -11,12 +11,14 @@ import {
 } from "firebase/database";
 import { nanoid } from "nanoid";
 import { useLayoutEffect, useRef, useState } from "react";
+import CardConfig from "./CardConfig";
+import cards from "./cards.json";
+import { flippableWildcards } from "./constants";
 import Game from "./Game";
 import gameReducer, { GameState, init, Payloads } from "./gameReducer";
 import StartScreen from "./StartScreen";
 import WaitingRoom from "./WaitingRoom";
 import WinScreen from "./WinScreen";
-import cards from "./cards.json";
 
 const firebaseConfig = {
   apiKey: process.env.REACT_APP_API_KEY,
@@ -40,6 +42,8 @@ function App() {
   const [nickname, setNickname] = useState(() => sessionStorage.getItem("nickname") ?? "");
   const unsubscribeRef = useRef<Function | null>(null);
   const [images, setImages] = useState<string[]>([]);
+  const [flippedImages, setFlippedImages] = useState<string[]>([]);
+  const [showConfig, setShowConfig] = useState(false);
 
   const isInRoom = async () => {
     const roomsRef = child(dbRef, "rooms");
@@ -103,6 +107,10 @@ function App() {
     unsubscribeRef.current = unsubscribe;
     const imageModules = await Promise.all(cards.map(({ id }) => import(`../public/${id}.png`)));
     setImages(imageModules.map(m => m.default));
+    const flippedImageModules = await Promise.all(
+      flippableWildcards.map(id => import(`../public/${id}-flipped.png`))
+    );
+    setFlippedImages(flippedImageModules.map(m => m.default));
     return true;
   };
 
@@ -134,6 +142,18 @@ function App() {
       />
     );
   if (!hasJoinedRoom) return <StartScreen onCreateGame={createRoom} onJoinGame={joinRoom} />;
+  if (showConfig)
+    return (
+      <CardConfig
+        initialConfig={gameState.cardConfig?.slice(24, 34)}
+        canEditConfig={gameState.players[0].id === clientId && !gameState.gameStarted}
+        onSave={config => {
+          dispatch({ type: "setCardConfig", payload: config });
+          setShowConfig(false);
+        }}
+        onCancel={() => setShowConfig(false)}
+      />
+    );
   if (!gameState.gameStarted)
     return (
       <WaitingRoom
@@ -141,6 +161,7 @@ function App() {
         players={gameState.players}
         onStart={() => dispatch({ type: "startGame" })}
         onLeave={leaveRoom}
+        onShowConfig={() => setShowConfig(true)}
       />
     );
   return (
@@ -149,7 +170,9 @@ function App() {
       gameState={gameState}
       dispatch={dispatch}
       onLeave={leaveRoom}
+      onShowConfig={() => setShowConfig(true)}
       images={images}
+      flippedImages={flippedImages}
     />
   );
 }

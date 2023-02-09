@@ -61,8 +61,9 @@ export type GameState = {
   players: Player[];
   deck: TCard[];
   discard: TCard[];
-  messages: { id: string; content: string }[];
+  messages: { id: "game" | String; content: string }[];
   winner: { player: Player; cards: TCard[] } | null;
+  cardConfig?: number[];
 } & ({ gameStarted: false } | { gameStarted: true; currentPlayerId: string });
 
 export const init = (): GameState => {
@@ -91,6 +92,7 @@ type PayloadAction<T, P = undefined> = P extends undefined ? { type: T } : { typ
 export type Payloads =
   | PayloadAction<"addPlayer", { id: string; nickname: string }>
   | PayloadAction<"removePlayer", string>
+  | PayloadAction<"setCardConfig", number[]>
   | PayloadAction<"startGame">
   | PayloadAction<
       "playCard",
@@ -193,11 +195,24 @@ const reducer: Reducer<GameState, Payloads> = (state, action) => {
           }),
       };
     }
+    case "setCardConfig": {
+      const { messages = [] } = state;
+      const cardConfig = [
+        ...defaultCardConfig.slice(0, 24),
+        ...action.payload,
+        ...defaultCardConfig.slice(34),
+      ];
+      return {
+        ...state,
+        cardConfig,
+        messages: [...messages, { id: "game", content: "Card frequencies changed" }],
+      };
+    }
     case "startGame": {
-      const { players = [] } = state;
+      const { players = [], cardConfig = defaultCardConfig, messages = [] } = state;
       if (players.length <= 1) return state;
       const shuffledPlayers = _.shuffle(players);
-      const deck = _.shuffle(cards.flatMap(card => Array(defaultCardConfig[card.id]).fill(card)));
+      const deck = _.shuffle(cards.flatMap(card => Array(cardConfig[card.id]).fill(card)));
       let newDeck = deck;
       const newPlayers = shuffledPlayers.map((player, index) => {
         let hand;
@@ -212,6 +227,7 @@ const reducer: Reducer<GameState, Payloads> = (state, action) => {
         gameStarted: true,
         currentPlayerId: newPlayers[0].id,
         winner: null,
+        messages: [...messages, { id: "game", content: "Game started" }],
       };
     }
     case "playCard": {

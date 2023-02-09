@@ -1,3 +1,5 @@
+import _ from "lodash";
+
 export const moneyToColor = {
   1: "rgb(161, 196, 191)",
   2: "rgb(211, 165, 132)",
@@ -50,3 +52,5 @@ export const defaultCardConfig = [
   // money 34-39
   1,2,3,3,5,6
 ];
+
+export const flippableWildcards = _.range(11, 18);
