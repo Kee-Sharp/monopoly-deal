@@ -160,7 +160,7 @@ function App() {
         roomId={roomId}
         players={gameState.players}
         onStart={() => dispatch({ type: "startGame" })}
-        onLeave={leaveRoom}
+        onLeave={() => leaveRoom()}
         onShowConfig={() => setShowConfig(true)}
       />
     );
