@@ -1,22 +1,23 @@
 import {
-  SwapVert,
-  CreditCard,
-  Shuffle,
+  Apartment,
   AssignmentLate,
   Cancel,
-  House,
-  Apartment,
-  KeyboardDoubleArrowDown,
-  CurrencyExchange,
   Celebration,
+  CreditCard,
+  CurrencyExchange,
   Filter2,
+  House,
+  KeyboardDoubleArrowDown,
   ShoppingCartCheckout,
+  Shuffle,
+  Style,
+  SwapVert,
 } from "@mui/icons-material";
-import { Box, Typography } from "@mui/material";
-import type { Color, TCard } from "./gameReducer";
+import { Box, Theme, Typography } from "@mui/material";
 import { SystemStyleObject } from "@mui/system";
-import { Theme } from "@mui/material";
-import { moneyToColor, colorToColor, rainbowBackground, stagesMap } from "./constants";
+import clsx from "clsx";
+import { colorToColor, moneyToColor, rainbowBackground, stagesMap } from "./constants";
+import type { Color, TCard } from "./gameReducer";
 
 export interface CardProps {
   card: TCard;
@@ -24,10 +25,21 @@ export interface CardProps {
   onFlip?: (card: TCard) => void;
   onClick?: (card: TCard) => void;
   sx?: SystemStyleObject<Theme>;
+  containerSx?: SystemStyleObject<Theme>;
   selected?: boolean;
+  isHand?: boolean;
 }
 
-const Card = ({ card, canFlip = true, onFlip, onClick, sx, selected }: CardProps) => {
+const Card = ({
+  card,
+  canFlip = true,
+  onFlip,
+  onClick,
+  sx,
+  containerSx,
+  selected,
+  isHand,
+}: CardProps) => {
   const { type, value } = card;
   let content: React.ReactNode = null;
   let backgroundColor = "black";
@@ -294,88 +306,145 @@ const Card = ({ card, canFlip = true, onFlip, onClick, sx, selected }: CardProps
     }
   }
   return (
-    <Box
-      className={selected ? "selected" : ""}
-      sx={{
-        boxShadow: theme => `0 0 0 1px ${theme.palette.grey[900]}99`,
-        position: "relative",
-        borderRadius: 2,
-        width: "var(--size)",
-        height: "calc(1.5 * var(--size))",
-        transition: "all 0.2s ease 0s",
-        zIndex: 2,
-        ":hover": {
-          transform: "scale(1.2)",
-          zIndex: 3,
-          marginRight: "58px",
-          cursor: "grab",
-        },
-        ...sx,
-      }}
-      onClick={() => onClick?.(card)}
-    >
+    <Box className="reverser" sx={containerSx}>
       <Box
-        className="perfect-center"
+        className={clsx({ selected, front: isHand })}
         sx={{
-          "--color": "white",
-          flexDirection: "column",
-          color: "white",
-          backgroundColor,
-          borderRadius: 2,
-          fontSize: 12,
+          boxShadow: theme => `0 0 0 1px ${theme.palette.grey[900]}99`,
           position: "relative",
-          overflow: "hidden",
-          userSelect: "none",
-          border: "4px solid var(--color)",
-          height: "100%",
-          ...otherStyles,
+          borderRadius: 2,
+          width: "var(--size)",
+          height: "calc(1.5 * var(--size))",
+          transition: "all 0.2s ease 0s",
+          zIndex: 2,
+          ...(!isHand && {
+            ":hover": {
+              transform: "scale(1.2)",
+              zIndex: 3,
+              marginRight: "58px",
+              cursor: "grab",
+            },
+          }),
+          ...sx,
         }}
+        onClick={() => onClick?.(card)}
       >
-        <Box
-          sx={{
-            backgroundColor: "var(--color)",
-            width: "calc(var(--size)*0.34)",
-            height: "calc(var(--size)*0.34)",
-            position: "absolute",
-            top: 0,
-            left: 0,
-            transform: "translate(-50%, -50%) rotate(45deg)",
-            transformOrigin: "center center",
-          }}
-        />
         <Box
           className="perfect-center"
           sx={{
-            position: "absolute",
-            backgroundColor,
-            border: "2px solid var(--color)",
-            borderRadius: "50%",
-            fontSize: 8,
-            width: "calc(var(--size)/4)",
-            height: "calc(var(--size)/4)",
-            top: -1,
-            left: -1,
+            "--color": "white",
             flexDirection: "column",
+            color: "white",
+            backgroundColor,
+            borderRadius: 2,
+            fontSize: 12,
+            position: "relative",
             overflow: "hidden",
+            userSelect: "none",
+            border: "4px solid var(--color)",
+            height: "100%",
+            ...otherStyles,
           }}
         >
-          {secondValueColor && (
+          <Box
+            sx={{
+              backgroundColor: "var(--color)",
+              width: "calc(var(--size)*0.34)",
+              height: "calc(var(--size)*0.34)",
+              position: "absolute",
+              top: 0,
+              left: 0,
+              transform: "translate(-50%, -50%) rotate(45deg)",
+              transformOrigin: "center center",
+            }}
+          />
+
+          <Box
+            className="perfect-center"
+            sx={{
+              position: "absolute",
+              backgroundColor,
+              border: "2px solid var(--color)",
+              borderRadius: "50%",
+              fontSize: 8,
+              width: "calc(var(--size)/4)",
+              height: "calc(var(--size)/4)",
+              top: -1,
+              left: -1,
+              flexDirection: "column",
+              overflow: "hidden",
+            }}
+          >
+            {secondValueColor && (
+              <Box
+                sx={{
+                  position: "absolute",
+                  bottom: 0,
+                  width: "100%",
+                  height: "calc((var(--size)/8) - 2px)",
+                  backgroundColor: secondValueColor,
+                }}
+              ></Box>
+            )}
+            <Typography fontSize="inherit" fontWeight="medium" zIndex={1}>
+              {value}M
+            </Typography>
+          </Box>
+          {content}
+        </Box>
+      </Box>
+      {isHand && (
+        <Box
+          className="back"
+          sx={{
+            boxShadow: theme => `0 0 0 1px ${theme.palette.grey[900]}99`,
+            position: "relative",
+            borderRadius: 2,
+            width: "var(--size)",
+            height: "calc(1.5 * var(--size))",
+            transition: "all 0.2s ease 0s",
+            zIndex: 2,
+          }}
+        >
+          <Box
+            className="perfect-center"
+            sx={{
+              flexDirection: "column",
+              color: "white",
+              backgroundColor: "#74d370",
+              borderRadius: 2,
+              fontSize: 12,
+              position: "relative",
+              overflow: "hidden",
+              userSelect: "none",
+              height: "100%",
+            }}
+          >
             <Box
               sx={{
-                position: "absolute",
-                bottom: 0,
-                width: "100%",
-                height: "calc((var(--size)/8) - 2px)",
-                backgroundColor: secondValueColor,
+                paddingX: 0.5,
+                paddingTop: 3,
+                marginBottom: 1,
               }}
-            ></Box>
-          )}
-          <Typography fontSize="inherit" fontWeight="medium" zIndex={1}>
-            {value}M
-          </Typography>
+            >
+              <Typography sx={{ fontSize: 12, color: "white", lineHeight: 1 }}>
+                Monopoly Deal
+              </Typography>
+            </Box>
+            <Box
+              className="perfect-center"
+              sx={{
+                color: "white",
+                zIndex: 1,
+                flex: 1,
+              }}
+            >
+              <Style sx={{ color: "white", fontSize: [26, 29, 30].includes(card.id) ? 30 : 28 }} />
+            </Box>
+            <Box sx={{ height: 25, paddingX: 0.25 }} />
+          </Box>
         </Box>
-        {content}
-      </Box>
+      )}
     </Box>
   );
 };

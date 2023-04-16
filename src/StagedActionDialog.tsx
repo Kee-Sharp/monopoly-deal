@@ -74,10 +74,12 @@ const StagedActionDialog = ({
                     canFlip={false}
                     sx={{
                       cursor: "default",
+                      ":hover": {},
+                    }}
+                    containerSx={{
                       ":not(:first-of-type)": {
                         marginTop: "calc(-1.5 * var(--size) * 0.82)",
                       },
-                      ":hover": {},
                     }}
                   />
                 ))}

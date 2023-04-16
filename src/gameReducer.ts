@@ -347,6 +347,7 @@ const reducer: Reducer<GameState, Payloads> = (state, action) => {
               // debt collector
               case 28: {
                 amountToCharge = 5;
+                newMessageContent = `${nickname} is collecting debt from ${targetedPlayer?.nickname}`;
                 break;
               }
               // hotel/house
@@ -363,7 +364,7 @@ const reducer: Reducer<GameState, Payloads> = (state, action) => {
               // it's my birthday
               case 31: {
                 amountToCharge = 2;
-                newMessageContent = `It's ${nickname}'s birthday`;
+                newMessageContent = `It's ${nickname}'s birthday!`;
                 break;
               }
               // double the rent
@@ -400,10 +401,21 @@ const reducer: Reducer<GameState, Payloads> = (state, action) => {
             newMessageContent = `${nickname} played card as money`;
             break;
           } else if (amountToCharge) {
+            if (
+              !players
+                .filter(({ id }) => id !== playerId)
+                .some(({ money, properties }) => money?.length || properties?.length)
+            )
+              return state;
             const skipRentModifier = card.type === "action";
             newPlayers = newPlayers.map(player => {
               let rentDue: Player["rentDue"] = null;
-              if (player.id === targetedPlayerId || (!targetedPlayerId && player.id !== playerId)) {
+              if (
+                player.id === targetedPlayerId ||
+                (!targetedPlayerId &&
+                  player.id !== playerId &&
+                  (player.money?.length || player.properties?.length))
+              ) {
                 rentDue = {
                   playerId,
                   amount: amountToCharge * (skipRentModifier ? 1 : rentModifier),
@@ -411,11 +423,11 @@ const reducer: Reducer<GameState, Payloads> = (state, action) => {
               }
               return { ...player, rentDue };
             });
-            newMessageContent = `${nickname} charged rent to ${
+            newMessageContent ||= `${nickname} charged rent to ${
               targetedPlayerId
                 ? players.find(({ id }) => id === targetedPlayerId)?.nickname ?? targetedPlayerId
                 : "everyone"
-            }`;
+            } on ${destinationColor?.replace("_", " ")}`;
             rentModifierApplied = !skipRentModifier;
           } else return state;
         }

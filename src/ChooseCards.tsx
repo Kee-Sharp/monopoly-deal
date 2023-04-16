@@ -158,11 +158,13 @@ const ChooseCards = ({
                       card={card}
                       canFlip={false}
                       sx={{
+                        ":hover": {},
+                        cursor: "default",
+                      }}
+                      containerSx={{
                         ":not(:first-of-type)": {
                           marginTop: "calc(-1.5 * var(--size) * 0.82)",
                         },
-                        ":hover": {},
-                        cursor: "default",
                       }}
                     />
                   ))}

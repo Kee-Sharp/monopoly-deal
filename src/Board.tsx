@@ -49,12 +49,7 @@ const Board = ({ player, myBoard, isTurn = false, onFlip, onClick, sx }: BoardPr
         ...sx,
       }}
     >
-      <Dialog
-        open={showBills}
-        disablePortal
-        onClose={() => setShowBills(false)}
-        sx={{ position: "absolute", bottom: "auto" }}
-      >
+      <Dialog open={showBills} onClose={() => setShowBills(false)}>
         <Box
           sx={{
             backgroundColor: "black",
@@ -78,9 +73,11 @@ const Board = ({ player, myBoard, isTurn = false, onFlip, onClick, sx }: BoardPr
                 key={`{card.id}-${index}`}
                 card={card}
                 sx={{
+                  ":hover": {},
+                }}
+                containerSx={{
                   flexShrink: 0,
                   ":not(:first-of-type)": { marginLeft: "-54px" },
-                  ":hover": {},
                 }}
               />
             ))}
@@ -137,11 +134,13 @@ const Board = ({ player, myBoard, isTurn = false, onFlip, onClick, sx }: BoardPr
                   canFlip={isTurn}
                   onFlip={card => onFlip?.(card, originalIndex, color)}
                   sx={{
+                    ":hover": {},
+                    ...((!myBoard || !isTurn) && { cursor: "default" }),
+                  }}
+                  containerSx={{
                     ":not(:first-of-type)": {
                       marginTop: "calc(-1.5 * var(--size) * 0.82)",
                     },
-                    ":hover": {},
-                    ...((!myBoard || !isTurn) && { cursor: "default" }),
                   }}
                 />
               ))}

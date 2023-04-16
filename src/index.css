@@ -82,7 +82,46 @@ code {
 
 .hand-card {
   flex-shrink: 0;
+  perspective: 1000px;
+  transition: all 0.2s ease 0s;
+  width: var(--size);
+  height: calc(1.5 * var(--size));
+  z-index: 2;
 }
 .hand-card:not(:first-of-type) {
   margin-left: calc(-1 * var(--size)*0.68);
+}
+.hand-card:hover {
+  transform: scale(1.2);
+  z-index: 3;
+  margin-right: 58px;
+}
+.hand-card:not(.reversed):hover {
+  cursor: grab;
+}
+.hand-card .reverser {
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 0.5s;
+  width: 100%;
+  height: 100%;
+}
+.front,
+.back {
+  position: absolute !important;
+  width: 100%;
+  height: 100%;
+  backface-visibility: hidden;
+}
+
+.back {
+  transform: rotateY(180deg);
+}
+
+.reversed .reverser {
+  transform: rotateY(180deg);
+}
+
+ul {
+  padding-inline-start: 20px;
 }

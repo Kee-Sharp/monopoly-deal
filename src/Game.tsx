@@ -1,4 +1,4 @@
-import { Chat, Info, Logout, MarkUnreadChatAlt, Menu, Settings } from "@mui/icons-material";
+import { Chat, Info, Logout, Loop, MarkUnreadChatAlt, Menu, Settings } from "@mui/icons-material";
 import {
   Box,
   Button,
@@ -18,6 +18,7 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
+import clsx from "clsx";
 import _ from "lodash";
 import { useEffect, useRef, useState } from "react";
 import Board from "./Board";
@@ -84,6 +85,7 @@ const Game = ({
     money: () => void;
   }>();
 
+  const [cardsReversed, setCardsReversed] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const cardContainerRef = useRef<HTMLDivElement>(null);
 
@@ -290,6 +292,7 @@ const Game = ({
     handIndex: number,
     id: number
   ) => {
+    if (cardsReversed) return;
     const cardElement = document.getElementById(`${id}-${handIndex}`);
     if (!cardElement) return;
     setDraggingElement(handIndex);
@@ -353,6 +356,7 @@ const Game = ({
         playCard({
           amountToCharge,
           targetedPlayerId,
+          destinationColor: color,
         });
       };
       if (Array.isArray(card.color)) {
@@ -1084,6 +1088,8 @@ const Game = ({
       <Box
         id="hand"
         sx={{
+          display: "flex",
+          flexDirection: "column",
           backgroundColor: "grey.900",
           marginTop: 3,
           position: "fixed",
@@ -1100,6 +1106,16 @@ const Game = ({
           zIndex: 3,
         }}
       >
+        <Box className="perfect-center">
+          <Button
+            variant="text"
+            sx={{ fontSize: 8, paddingY: 0, color: "white" }}
+            startIcon={<Loop />}
+            onClick={() => setCardsReversed(!cardsReversed)}
+          >
+            Flip Cards
+          </Button>
+        </Box>
         <Box
           className="custom-scrollbar"
           ref={cardContainerRef}
@@ -1130,7 +1146,7 @@ const Game = ({
                 display: "flex",
                 flexDirection: "column",
                 justifyContent: isThisPlayersTurn ? "space-between" : "center",
-                paddingY: 3,
+                paddingY: 2,
                 maxWidth: 70,
               }}
             >
@@ -1257,12 +1273,13 @@ const Game = ({
                 <div
                   key={id}
                   id={id}
-                  className="hand-card"
-                  draggable={true}
+                  className={clsx(["hand-card", { reversed: cardsReversed }])}
+                  draggable={!cardsReversed}
                   onDragStart={e => handleDragStart(e, index, card.id)}
                   onDragEnd={cleanupDrag}
                   onTouchStart={e => handleTouchStart(e, index, card.id)}
                   onTouchEnd={() => {
+                    if (cardsReversed) return;
                     cleanupDrag();
                     const thisElement = document.getElementById(id);
                     // @ts-ignore
@@ -1283,6 +1300,7 @@ const Game = ({
                       })
                     }
                     sx={draggingElement === index ? { opacity: 0.2 } : undefined}
+                    isHand
                   />
                 </div>
               );
