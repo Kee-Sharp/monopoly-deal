@@ -42,7 +42,11 @@ const StartScreen = ({ onCreateGame, onJoinGame }: StartScreenProps) => {
 
   const fetchAndParseChangeLog = async () => {
     try {
-      const response = await fetch("/CHANGELOG.md");
+      const response = await fetch(
+        import.meta.env.DEV
+          ? "/CHANGELOG.md"
+          : "https://raw.githubusercontent.com/kee-sharp/monopoly-deal/master/CHANGELOG.md"
+      );
       if (!response.ok) {
         throw new Error("Network response was not ok");
       }
