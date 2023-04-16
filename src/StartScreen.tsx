@@ -42,7 +42,7 @@ const StartScreen = ({ onCreateGame, onJoinGame }: StartScreenProps) => {
 
   const fetchAndParseChangeLog = async () => {
     try {
-      const response = await fetch("../CHANGELOG.md");
+      const response = await fetch("/CHANGELOG.md");
       if (!response.ok) {
         throw new Error("Network response was not ok");
       }
