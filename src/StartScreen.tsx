@@ -80,7 +80,7 @@ const StartScreen = ({ onCreateGame, onJoinGame }: StartScreenProps) => {
         flexDirection: "column",
         alignItems: "center",
         padding: 2,
-        height: "100vh",
+        height: "100svh",
         position: "relative",
       }}
     >
