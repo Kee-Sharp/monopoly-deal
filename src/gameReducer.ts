@@ -224,6 +224,7 @@ const reducer: Reducer<GameState, Payloads> = (state, action) => {
         ...state,
         players: newPlayers,
         deck: newDeck,
+        discard: [],
         gameStarted: true,
         currentPlayerId: newPlayers[0].id,
         winner: null,
