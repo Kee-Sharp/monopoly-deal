@@ -105,7 +105,7 @@ const ChooseCards = ({
       <Dialog
         open={showPlayerBoard}
         onClose={() => setShowPlayerBoard(false)}
-        sx={{ ".MuiPaper-root": { backgroundColor: "rgba(0,0,0,0.5)" } }}
+        sx={{ ".MuiPaper-root": { backgroundColor: "rgba(0,0,0,0)" } }}
       >
         <Box sx={{ display: "flex", gap: 2 }}>
           <Board player={player} sx={{ zoom: 0.7 }} />

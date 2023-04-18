@@ -60,6 +60,7 @@ const StartScreen = ({ onCreateGame, onJoinGame }: StartScreenProps) => {
 
   useEffect(() => {
     fetchAndParseChangeLog().then(result => {
+      console.log(result);
       if (!result) return;
       const mostRecent = result.versions[0];
       setMostRecentVersion(mostRecent);
