@@ -1,5 +1,8 @@
-import { Box, Button, Dialog, Theme } from "@mui/material";
+import { Search } from "@mui/icons-material";
+import { Box, Button, Dialog, IconButton, Theme } from "@mui/material";
 import { SystemStyleObject } from "@mui/system";
+import { useState } from "react";
+import Board from "./Board";
 import Card from "./Card";
 import { colors, Player, PropertyCard, SolidColor, TCard } from "./gameReducer";
 import { useToggle } from "./hooks";
@@ -18,6 +21,7 @@ export type ChooseCardsOptions =
 
 export type ChooseCardsProps = {
   player: Player;
+  otherPlayer?: Player;
   cards?: TCard[];
   cardSx?: SystemStyleObject<Theme>;
   title:
@@ -42,6 +46,7 @@ const ChooseCards = ({
   isSet,
   onChoose,
   player,
+  otherPlayer,
   cards,
   cardSx,
   title,
@@ -59,6 +64,7 @@ const ChooseCards = ({
   const [selectedProperties, toggleSelectedProperties, setSelectedProperties] = useToggle();
   /** Other cards can be other properties or our own money */
   const [selectedOtherCards, toggleSelectedOtherCards, setSelectedOtherCards] = useToggle();
+  const [showPlayerBoard, setShowPlayerBoard] = useState(false);
 
   const { properties = [], fullSets = {} } = player;
   const propertiesMap = properties.reduce((map, property, index) => {
@@ -96,9 +102,20 @@ const ChooseCards = ({
 
   return (
     <Dialog open sx={{ ".MuiPaper-root": { backgroundColor: "grey.900" } }}>
+      <Dialog
+        open={showPlayerBoard}
+        onClose={() => setShowPlayerBoard(false)}
+        sx={{ ".MuiPaper-root": { backgroundColor: "rgba(0,0,0,0.5)" } }}
+      >
+        <Box sx={{ display: "flex", gap: 2 }}>
+          <Board player={player} sx={{ zoom: 0.7 }} />
+          {otherPlayer && <Board player={otherPlayer} sx={{ zoom: 0.7 }} />}
+        </Box>
+      </Dialog>
       <Box
         sx={{
-          padding: 2,
+          paddingY: 2,
+          paddingX: 3,
           borderRadius: 2,
           backgroundColor: "grey.900",
           border: `2px solid ${borderColor}`,
@@ -233,6 +250,21 @@ const ChooseCards = ({
             {secondaryAction.label}
           </Button>
         </Box>
+        <IconButton
+          className="perfect-center"
+          sx={{
+            position: "absolute",
+            bottom: 8,
+            right: 8,
+            backgroundColor: "#a248d1",
+            width: 20,
+            height: 20,
+            borderRadius: "50%",
+          }}
+          onClick={() => setShowPlayerBoard(true)}
+        >
+          <Search sx={{ color: "white", fontSize: 16 }} />
+        </IconButton>
       </Box>
     </Dialog>
   );

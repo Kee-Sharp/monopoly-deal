@@ -171,6 +171,7 @@ const Game = ({
     if (rentDue) {
       setChooseCards({
         player: thisPlayer,
+        otherPlayer: playerChargingRent,
         title: (selectedProperties, selectedOtherCards) => {
           const totalSelected = [...selectedOtherCards, ...selectedProperties].reduce(
             (total, card) => total + (card?.value ?? 0),
@@ -389,6 +390,7 @@ const Game = ({
               const targetedPlayer = playersMap[targetedPlayerId];
               setChooseCards({
                 player: targetedPlayer,
+                otherPlayer: thisPlayer,
                 title: (
                   <ColoredText
                     sentence="Click one full set in order to steal"
@@ -416,6 +418,7 @@ const Game = ({
               const targetedPlayer = playersMap[targetedPlayerId];
               setChooseCards({
                 player: targetedPlayer,
+                otherPlayer: thisPlayer,
                 title: (
                   <ColoredText
                     sentence={`Select one of ${targetedPlayer.nickname}'s cards to take`}
@@ -449,6 +452,7 @@ const Game = ({
               const targetedPlayer = playersMap[targetedPlayerId];
               setChooseCards({
                 player: targetedPlayer,
+                otherPlayer: thisPlayer,
                 title: (
                   <ColoredText
                     sentence={`Select one of ${targetedPlayer.nickname}'s cards to take`}

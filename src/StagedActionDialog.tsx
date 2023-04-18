@@ -1,6 +1,9 @@
-import { Dialog, Box, Button, Typography } from "@mui/material";
+import { Dialog, Box, Button, Typography, IconButton } from "@mui/material";
+import { Search } from "@mui/icons-material";
 import Card from "./Card";
 import type { Player, StagedAction } from "./gameReducer";
+import Board from "./Board";
+import { useState } from "react";
 
 interface StagedActionDialogProps {
   stagedAction: StagedAction;
@@ -17,6 +20,8 @@ const StagedActionDialog = ({
   sayNo,
   letItHappen,
 }: StagedActionDialogProps) => {
+  const [showPlayerBoard, setShowPlayerBoard] = useState(false);
+
   const { cardId, takingIndices, givingIndex } = stagedAction;
   const takingProperties = targetedPlayer.properties.filter((_, index) =>
     takingIndices.includes(index)
@@ -39,6 +44,12 @@ const StagedActionDialog = ({
   }
   return (
     <Dialog open sx={{ ".MuiPaper-root": { borderRadius: 2 } }}>
+      <Dialog open={showPlayerBoard} onClose={() => setShowPlayerBoard(false)}>
+        <Box sx={{ display: "flex" }}>
+          <Board player={targetedPlayer} sx={{ zoom: 0.7 }} />
+          <Board player={currentPlayer} sx={{ zoom: 0.7 }} />
+        </Box>
+      </Dialog>
       <Box
         sx={{
           borderRadius: 2,
@@ -104,6 +115,21 @@ const StagedActionDialog = ({
             Let It Happen
           </Button>
         </Box>
+        <IconButton
+          className="perfect-center"
+          sx={{
+            position: "absolute",
+            bottom: 8,
+            right: 8,
+            backgroundColor: "#a248d1",
+            width: 20,
+            height: 20,
+            borderRadius: "50%",
+          }}
+          onClick={() => setShowPlayerBoard(true)}
+        >
+          <Search sx={{ color: "white", fontSize: 16 }} />
+        </IconButton>
       </Box>
     </Dialog>
   );
