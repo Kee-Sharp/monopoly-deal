@@ -49,7 +49,7 @@ const StagedActionDialog = ({
         onClose={() => setShowPlayerBoard(false)}
         sx={{ ".MuiPaper-root": { backgroundColor: "rgba(0,0,0,0)" } }}
       >
-        <Box sx={{ display: "flex" }}>
+        <Box sx={{ display: "flex", gap: 2 }}>
           <Board player={targetedPlayer} sx={{ zoom: 0.7 }} />
           <Board player={currentPlayer} sx={{ zoom: 0.7 }} />
         </Box>
