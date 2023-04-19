@@ -18,11 +18,12 @@ import ChangeList from "./ChangeList";
 interface StartScreenProps {
   onCreateGame: (nickname: string) => void;
   onJoinGame: (nickname: string, roomId: string) => Promise<boolean>;
+  clientId: string;
 }
 
 type ChangelogVersion = parseChangelog.Changelog["versions"][number];
 
-const StartScreen = ({ onCreateGame, onJoinGame }: StartScreenProps) => {
+const StartScreen = ({ onCreateGame, onJoinGame, clientId }: StartScreenProps) => {
   const [nickname, setNickname] = useState("");
   const [nicknameError, setNicknameError] = useState(false);
   const [roomId, setRoomId] = useState("");
@@ -202,6 +203,7 @@ const StartScreen = ({ onCreateGame, onJoinGame }: StartScreenProps) => {
           </Button>
         )}
       </Box>
+      <Typography sx={{ position: "absolute", bottom: 24, color: 'grey' }}>{clientId}</Typography>
       <IconButton
         sx={{ position: "absolute", bottom: 24, right: 24, color: "grey.300" }}
         onClick={() => setNewVersion(mostRecentVersion)}

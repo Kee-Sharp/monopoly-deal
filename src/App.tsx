@@ -141,7 +141,7 @@ function App() {
         onRejoin={() => joinRoom(nickname, roomId)}
       />
     );
-  if (!hasJoinedRoom) return <StartScreen onCreateGame={createRoom} onJoinGame={joinRoom} />;
+  if (!hasJoinedRoom) return <StartScreen onCreateGame={createRoom} onJoinGame={joinRoom} clientId={clientId} />;
   if (showConfig)
     return (
       <CardConfig
