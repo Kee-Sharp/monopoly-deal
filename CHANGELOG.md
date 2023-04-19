@@ -3,7 +3,7 @@
 ## 1.2.0 - 2023-04-18
 
 ### Features
-* Players can now view their hand and their opponent's hand when paying rent and taking properties
+* Players can now view their board and their opponent's board when paying rent and taking properties
 
 ### Bug Fixes
 * The discard pile is properly reset for new games
