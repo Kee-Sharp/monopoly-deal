@@ -144,7 +144,7 @@ const StartScreen = ({ onCreateGame, onJoinGame, clientId }: StartScreenProps) =
             <ArrowBackIosNew />
           </IconButton>
         )}
-        {newIndex < allVersions.length - 2 && (
+        {!!allVersions?.[newIndex + 1] && allVersions[newIndex + 1].version !== "1.0.0" && (
           <IconButton
             onClick={() => setNewVersion(allVersions?.[newIndex + 1])}
             sx={{
