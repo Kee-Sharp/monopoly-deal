@@ -178,8 +178,8 @@ const Game = ({
             0
           );
           const allSelected = [properties, money].every((arr, isMoney) =>
-            arr.every((_, index) =>
-              isMoney ? selectedOtherCards[index] : selectedProperties[index]
+            arr.every(({ value }, index) =>
+              isMoney ? selectedOtherCards[index] : selectedProperties[index] || !value
             )
           );
           const canPayRent = totalSelected >= (rentDue?.amount ?? 0) || allSelected;
@@ -594,7 +594,7 @@ const Game = ({
   return (
     <Box
       className="custom-scrollbar"
-      sx={{ overflowY: "auto", padding: 4, paddingTop: 0, height: "100vh" }}
+      sx={{ overflowY: "auto", padding: 4, paddingTop: 0, height: "100svh" }}
     >
       <SwipeableDrawer
         open={isDrawerOpen}
@@ -651,7 +651,7 @@ const Game = ({
       >
         <Stack
           sx={{
-            maxWidth: 200,
+            width: 200,
             color: "white",
             padding: 1,
             paddingRight: 0,
@@ -673,6 +673,7 @@ const Game = ({
                 <Stack
                   key={index}
                   sx={{
+                    maxWidth: 140,
                     alignSelf: id === messageId ? "flex-end" : "flex-start",
                     ...(isContentSmall && { alignItems: "center" }),
                   }}
@@ -695,6 +696,12 @@ const Game = ({
                           borderBottomLeftRadius: "4px",
                           borderBottomRightRadius: "4px",
                         }),
+                        ...(!isContentSmall &&
+                          id === messageId && {
+                            alignSelf: "flex-end",
+                            marginLeft: 0,
+                            marginRight: 0.75,
+                          }),
                       }}
                     >
                       {messagingPlayerNickname}

@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.1 - 2023-04-20
+
+### Bug Fixes
+* Players don't have to give up the rainbow wildcard when paying rent
+* Chat messages from players don't take up the full width
+
 ## 1.2.0 - 2023-04-18
 
 ### Features
@@ -9,7 +15,6 @@
 * The discard pile is properly reset for new games
 
 ## 1.1.0 - 2023-04-15
-
 
 ### Features
 

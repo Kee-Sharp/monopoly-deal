@@ -1,4 +1,4 @@
-import { Close, NewReleases } from "@mui/icons-material";
+import { ArrowBackIosNew, ArrowForwardIos, Close, NewReleases } from "@mui/icons-material";
 import {
   Box,
   Button,
@@ -29,8 +29,10 @@ const StartScreen = ({ onCreateGame, onJoinGame, clientId }: StartScreenProps) =
   const [roomId, setRoomId] = useState("");
   const [showJoinInput, setShowJoinInput] = useState(false);
   const [joinError, setJoinError] = useState(false);
-  const [mostRecentVersion, setMostRecentVersion] = useState<ChangelogVersion>();
+  const [allVersions, setAllVersions] = useState<ChangelogVersion[]>([]);
   const [newVersion, setNewVersion] = useState<ChangelogVersion>();
+
+  const newIndex = allVersions.findIndex(({ version }) => version === newVersion?.version) ?? 0;
 
   const handleJoin = async () => {
     if (!nickname.length) setNicknameError(true);
@@ -63,15 +65,15 @@ const StartScreen = ({ onCreateGame, onJoinGame, clientId }: StartScreenProps) =
     fetchAndParseChangeLog().then(result => {
       console.log(result);
       if (!result) return;
+      setAllVersions(result.versions);
       const mostRecent = result.versions[0];
-      setMostRecentVersion(mostRecent);
       const mostRecentSeen = localStorage.getItem("MDVersion");
       if (mostRecent.version !== mostRecentSeen) setNewVersion(mostRecent);
     });
   }, []);
 
   const closeVersionDialog = () => {
-    localStorage.setItem("MDVersion", newVersion?.version ?? "");
+    localStorage.setItem("MDVersion", allVersions[0]?.version ?? "");
     setNewVersion(undefined);
   };
 
@@ -98,7 +100,8 @@ const StartScreen = ({ onCreateGame, onJoinGame, clientId }: StartScreenProps) =
             border: "2px solid #99f",
             display: "flex",
             flexDirection: "column",
-            padding: 1,
+            paddingY: 1,
+            paddingX: 3,
           }}
         >
           <DialogTitle
@@ -125,6 +128,47 @@ const StartScreen = ({ onCreateGame, onJoinGame, clientId }: StartScreenProps) =
             )}
           </DialogContent>
         </Box>
+        {newIndex > 0 && (
+          <IconButton
+            onClick={() => setNewVersion(allVersions?.[newIndex - 1])}
+            sx={{
+              position: "absolute",
+              top: 0,
+              bottom: 0,
+              left: 8,
+              margin: "auto 0",
+              color: "grey.700",
+              height: "fit-content",
+            }}
+          >
+            <ArrowBackIosNew />
+          </IconButton>
+        )}
+        {newIndex < allVersions.length - 2 && (
+          <IconButton
+            onClick={() => setNewVersion(allVersions?.[newIndex + 1])}
+            sx={{
+              position: "absolute",
+              top: 0,
+              bottom: 0,
+              right: 8,
+              margin: "auto 0",
+              color: "grey.700",
+              height: "fit-content",
+            }}
+          >
+            <ArrowForwardIos />
+          </IconButton>
+        )}
+        {!!newVersion?.date && (
+          <Typography
+            color="grey.700"
+            fontSize={12}
+            sx={{ position: "absolute", left: 0, right: 0, bottom: 8, textAlign: "center" }}
+          >
+            {new Date(newVersion.date).toLocaleDateString()}
+          </Typography>
+        )}
       </Dialog>
       <Typography
         variant="h2"
@@ -203,10 +247,12 @@ const StartScreen = ({ onCreateGame, onJoinGame, clientId }: StartScreenProps) =
           </Button>
         )}
       </Box>
-      <Typography sx={{ position: "absolute", bottom: 24, color: 'grey' }}>{clientId}</Typography>
+      <Typography sx={{ position: "absolute", bottom: 24, color: "grey.800" }}>
+        {clientId}
+      </Typography>
       <IconButton
         sx={{ position: "absolute", bottom: 24, right: 24, color: "grey.300" }}
-        onClick={() => setNewVersion(mostRecentVersion)}
+        onClick={() => setNewVersion(allVersions[0])}
       >
         <NewReleases />
       </IconButton>
