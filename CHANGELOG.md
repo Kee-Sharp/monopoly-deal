@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.3.0 - 2023-04-22
+
+### Features
+* Players can now rejoin rooms they've played in
+* Players are directed to click a board when they play a targeting card
+
+### Bug Fixes
+* Create and Join game can only be pressed once
+
+
 ## 1.2.1 - 2023-04-20
 
 ### Bug Fixes

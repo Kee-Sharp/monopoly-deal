@@ -15,7 +15,7 @@ import CardConfig from "./CardConfig";
 import cards from "./cards.json";
 import { flippableWildcards } from "./constants";
 import Game from "./Game";
-import gameReducer, { GameState, init, Payloads } from "./gameReducer";
+import gameReducer, { GameState, init, Payloads, Player } from "./gameReducer";
 import StartScreen from "./StartScreen";
 import WaitingRoom from "./WaitingRoom";
 import WinScreen from "./WinScreen";
@@ -36,8 +36,8 @@ const database = getDatabase(app);
 const dbRef = ref(database);
 
 function App() {
-  const clientId = generateClientId();
-  const [gameState, setGameState] = useState(init());
+  const [clientId, setClientId] = useState(generateClientId);
+  const [gameState, setGameState] = useState(init);
   const [roomId, setRoomId] = useState("");
   const [nickname, setNickname] = useState(() => sessionStorage.getItem("nickname") ?? "");
   const unsubscribeRef = useRef<Function | null>(null);
@@ -45,23 +45,29 @@ function App() {
   const [flippedImages, setFlippedImages] = useState<string[]>([]);
   const [showConfig, setShowConfig] = useState(false);
 
-  const isInRoom = async () => {
+  const isInRoom = async (idsToCheck: string[]) => {
     const roomsRef = child(dbRef, "rooms");
     const snapshot = await get(roomsRef);
     const rooms = (snapshot.val() ?? {}) as Record<string, GameState>;
+    let matches: { roomId: string; player: Player; room: GameState }[] = [];
     for (let [roomId, room] of Object.entries(rooms)) {
       const { players = [] } = room;
-      const matchingPlayer = players.find(({ id }) => id === clientId);
-      if (matchingPlayer) {
-        return { roomId, nickname: matchingPlayer.nickname };
-      }
+      players.forEach(player => {
+        if (idsToCheck.includes(player.id)) {
+          matches.push({ roomId, player, room });
+        }
+      });
     }
+    return matches;
   };
 
   useLayoutEffect(() => {
-    isInRoom().then(result => {
-      if (!result) return;
-      const { nickname, roomId } = result;
+    isInRoom([clientId]).then(result => {
+      if (!result.length) return;
+      const {
+        player: { nickname },
+        roomId,
+      } = result[0];
       joinRoom(nickname, roomId, true);
     });
     return () => unsubscribeRef.current?.();
@@ -99,6 +105,11 @@ function App() {
       }
     }
     setGameState(newState);
+    const allSessions: string[] = JSON.parse(localStorage.getItem("allSessions") ?? "[]");
+    if (!allSessions.includes(clientId)) {
+      allSessions.push(clientId);
+      localStorage.setItem("allSessions", JSON.stringify(allSessions));
+    }
     unsubscribeRef.current?.();
     const unsubscribe = onValue(roomRef, snapshot => {
       const data = snapshot.val() as GameState | null;
@@ -124,12 +135,20 @@ function App() {
 
   const leaveRoom = async (alreadyLeft = false) => {
     if (!alreadyLeft) await dispatch({ type: "removePlayer", payload: clientId });
+    const allSessions: string[] = JSON.parse(localStorage.getItem("allSessions") ?? "[]");
+    const newSessions = allSessions.filter(sess => sess !== clientId);
+    localStorage.setItem("allSessions", JSON.stringify(newSessions));
     const roomRef = child(dbRef, `rooms/${roomId}`);
     const gameSnapshot = await get(roomRef);
     const state = gameSnapshot.val() as GameState | null;
     if (!state?.players?.length && !alreadyLeft) remove(roomRef);
     unsubscribeRef.current?.();
     setGameState(init());
+  };
+
+  const rejoinRoom = (newClientId: string) => {
+    setClientId(newClientId);
+    sessionStorage.setItem("clientId", newClientId);
   };
 
   const hasJoinedRoom = !!gameState.players?.find(({ id }) => id === clientId);
@@ -141,7 +160,16 @@ function App() {
         onRejoin={() => joinRoom(nickname, roomId)}
       />
     );
-  if (!hasJoinedRoom) return <StartScreen onCreateGame={createRoom} onJoinGame={joinRoom} clientId={clientId} />;
+  if (!hasJoinedRoom)
+    return (
+      <StartScreen
+        onCreateGame={createRoom}
+        onJoinGame={joinRoom}
+        clientId={clientId}
+        isInRoom={isInRoom}
+        rejoinRoom={rejoinRoom}
+      />
+    );
   if (showConfig)
     return (
       <CardConfig

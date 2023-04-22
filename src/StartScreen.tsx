@@ -1,29 +1,49 @@
-import { ArrowBackIosNew, ArrowForwardIos, Close, NewReleases } from "@mui/icons-material";
+import { ArrowBackIosNew, ArrowForwardIos, Check, Close, NewReleases } from "@mui/icons-material";
 import {
   Box,
   Button,
+  Card,
+  CardActions,
+  CardContent,
   Dialog,
   DialogContent,
   DialogTitle,
   IconButton,
   Slide,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
   TextField,
   Typography,
 } from "@mui/material";
 import { TransitionProps } from "@mui/material/transitions";
 import parseChangelog from "changelog-parser";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import ChangeList from "./ChangeList";
+import { GameState, Player } from "./gameReducer";
+import useSingleClick from "./useSingleClick";
 
 interface StartScreenProps {
   onCreateGame: (nickname: string) => void;
   onJoinGame: (nickname: string, roomId: string) => Promise<boolean>;
   clientId: string;
+  isInRoom: (
+    idsToCheck: string[]
+  ) => Promise<{ roomId: string; player: Player; room: GameState }[]>;
+  rejoinRoom: (newClientId: string) => void;
 }
 
 type ChangelogVersion = parseChangelog.Changelog["versions"][number];
 
-const StartScreen = ({ onCreateGame, onJoinGame, clientId }: StartScreenProps) => {
+const StartScreen = ({
+  onCreateGame,
+  onJoinGame,
+  clientId,
+  isInRoom,
+  rejoinRoom,
+}: StartScreenProps) => {
   const [nickname, setNickname] = useState("");
   const [nicknameError, setNicknameError] = useState(false);
   const [roomId, setRoomId] = useState("");
@@ -31,6 +51,11 @@ const StartScreen = ({ onCreateGame, onJoinGame, clientId }: StartScreenProps) =
   const [joinError, setJoinError] = useState(false);
   const [allVersions, setAllVersions] = useState<ChangelogVersion[]>([]);
   const [newVersion, setNewVersion] = useState<ChangelogVersion>();
+  const [previousRooms, setPreviousRooms] = useState<
+    Awaited<ReturnType<StartScreenProps["isInRoom"]>>
+  >([]);
+
+  const singleOnCreate = useSingleClick(() => onCreateGame(nickname), [nickname], 1000);
 
   const newIndex = allVersions.findIndex(({ version }) => version === newVersion?.version) ?? 0;
 
@@ -42,6 +67,7 @@ const StartScreen = ({ onCreateGame, onJoinGame, clientId }: StartScreenProps) =
       if (!result) setJoinError(true);
     }
   };
+  const singleJoin = useSingleClick(handleJoin, [nickname, roomId], 3000);
 
   const fetchAndParseChangeLog = async () => {
     try {
@@ -170,12 +196,81 @@ const StartScreen = ({ onCreateGame, onJoinGame, clientId }: StartScreenProps) =
           </Typography>
         )}
       </Dialog>
+      <Dialog
+        open={!!previousRooms.length}
+        keepMounted
+        onClose={() => setPreviousRooms([])}
+        sx={{ ".MuiPaper-root": { backgroundColor: "grey.900" } }}
+      >
+        <Box
+          sx={{
+            border: "2px solid primary.main",
+            display: "flex",
+            flexDirection: "column",
+            padding: 1,
+          }}
+        >
+          <DialogTitle
+            sx={{
+              color: "white",
+              fontSize: 16,
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              paddingX: 2,
+            }}
+          >
+            <Typography>All Previous Rooms</Typography>
+            <IconButton onClick={() => setPreviousRooms([])} sx={{ color: "white", padding: 0.25 }}>
+              <Close sx={{ fontSize: 14 }} />
+            </IconButton>
+          </DialogTitle>
+          <DialogContent sx={{ paddingX: 2 }}>
+            <Table sx={{ "& .MuiTableCell-root": { color: "white" } }}>
+              <TableHead>
+                <TableRow>
+                  <TableCell>Room Id</TableCell>
+                  <TableCell>Nickname</TableCell>
+                  <TableCell>Other Players</TableCell>
+                  <TableCell>Money</TableCell>
+                  <TableCell>Rejoin?</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {previousRooms.map(({ roomId, player, room }) => (
+                  <TableRow key={`${roomId}-${player.id}`}>
+                    <TableCell>{roomId}</TableCell>
+                    <TableCell>{player.nickname}</TableCell>
+                    <TableCell>
+                      {room.players
+                        .filter(({ id }) => id !== player.id)
+                        .map(({ nickname }) => nickname)
+                        .join(", ")}
+                    </TableCell>
+                    <TableCell align="center">
+                      {(player.money ?? []).reduce((acc, { value }) => acc + value, 0)}
+                    </TableCell>
+                    <TableCell>
+                      <IconButton
+                        sx={{ color: "success.main" }}
+                        onClick={() => rejoinRoom(player.id)}
+                      >
+                        <Check />
+                      </IconButton>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </DialogContent>
+        </Box>
+      </Dialog>
       <Typography
         variant="h2"
         textAlign="center"
         color="primary"
         fontWeight="medium"
-        sx={{ marginBottom: 4 }}
+        sx={{ marginBottom: 6 }}
       >
         Monopoly Deal
       </Typography>
@@ -191,7 +286,7 @@ const StartScreen = ({ onCreateGame, onJoinGame, clientId }: StartScreenProps) =
           size="small"
           color="secondary"
           sx={{
-            marginBottom: 4,
+            marginBottom: 8,
             "& .MuiOutlinedInput-root": {
               "& fieldset": {
                 borderColor: "grey.400",
@@ -208,7 +303,7 @@ const StartScreen = ({ onCreateGame, onJoinGame, clientId }: StartScreenProps) =
           sx={{ marginBottom: 2 }}
           onClick={() => {
             if (!nickname.length) setNicknameError(true);
-            else onCreateGame(nickname);
+            else singleOnCreate();
           }}
         >
           Create Game
@@ -237,7 +332,7 @@ const StartScreen = ({ onCreateGame, onJoinGame, clientId }: StartScreenProps) =
               }}
               inputProps={{ sx: { color: "grey.400" } }}
             />
-            <Button color="secondary" onClick={handleJoin}>
+            <Button color="secondary" onClick={singleJoin}>
               Join
             </Button>
           </Box>
@@ -246,6 +341,15 @@ const StartScreen = ({ onCreateGame, onJoinGame, clientId }: StartScreenProps) =
             Join Game
           </Button>
         )}
+        <Button
+          sx={{ marginTop: 2 }}
+          onClick={() => {
+            const allSessions = JSON.parse(localStorage.getItem("allSessions") ?? "[]");
+            isInRoom(allSessions).then(setPreviousRooms);
+          }}
+        >
+          Rejoin Game
+        </Button>
       </Box>
       <Typography sx={{ position: "absolute", bottom: 24, color: "grey.800" }}>
         {clientId}

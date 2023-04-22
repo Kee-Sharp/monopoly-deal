@@ -1006,19 +1006,27 @@ const Game = ({
             <Menu />
           </IconButton>
         </Box>
-        <Box className="perfect-center" sx={{ flex: 1, flexDirection: "column" }}>
-          <ColoredText
-            sentence={`${deck.length} card${deck.length === 1 ? "" : "s"} in deck`}
-            coloredWords={[`${deck.length}`]}
-            color="success.main"
-            sx={{ fontSize: 12 }}
-          />
-          <ColoredText
-            sentence={`${discard.length} card${discard.length === 1 ? "" : "s"} discarded`}
-            coloredWords={[`${discard.length}`]}
-            color="error.main"
-            sx={{ fontSize: 10 }}
-          />
+        <Box className="perfect-center" sx={{ flex: 2, flexDirection: "column" }}>
+          {choosePlayer ? (
+            <Typography sx={{ fontSize: 10, color: "#16c6fe" }}>
+              Tap the board of the player you want to target
+            </Typography>
+          ) : (
+            <>
+              <ColoredText
+                sentence={`${deck.length} card${deck.length === 1 ? "" : "s"} in deck`}
+                coloredWords={[`${deck.length}`]}
+                color="success.main"
+                sx={{ fontSize: 12 }}
+              />
+              <ColoredText
+                sentence={`${discard.length} card${discard.length === 1 ? "" : "s"} discarded`}
+                coloredWords={[`${discard.length}`]}
+                color="error.main"
+                sx={{ fontSize: 10 }}
+              />
+            </>
+          )}
         </Box>
         <Box sx={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
           <IconButton onClick={() => setIsChatOpen(true)} color="secondary">
