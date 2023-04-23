@@ -1,10 +1,16 @@
-import { ArrowBackIosNew, ArrowForwardIos, Check, Close, NewReleases } from "@mui/icons-material";
+import {
+  Add,
+  ArrowBackIosNew,
+  ArrowForwardIos,
+  Check,
+  Close,
+  ManageSearch,
+  NewReleases,
+  Replay,
+} from "@mui/icons-material";
 import {
   Box,
   Button,
-  Card,
-  CardActions,
-  CardContent,
   Dialog,
   DialogContent,
   DialogTitle,
@@ -20,7 +26,7 @@ import {
 } from "@mui/material";
 import { TransitionProps } from "@mui/material/transitions";
 import parseChangelog from "changelog-parser";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import ChangeList from "./ChangeList";
 import { GameState, Player } from "./gameReducer";
 import useSingleClick from "./useSingleClick";
@@ -51,9 +57,8 @@ const StartScreen = ({
   const [joinError, setJoinError] = useState(false);
   const [allVersions, setAllVersions] = useState<ChangelogVersion[]>([]);
   const [newVersion, setNewVersion] = useState<ChangelogVersion>();
-  const [previousRooms, setPreviousRooms] = useState<
-    Awaited<ReturnType<StartScreenProps["isInRoom"]>>
-  >([]);
+  const [previousRooms, setPreviousRooms] =
+    useState<Awaited<ReturnType<StartScreenProps["isInRoom"]>>>();
 
   const singleOnCreate = useSingleClick(() => onCreateGame(nickname), [nickname], 1000);
 
@@ -127,7 +132,7 @@ const StartScreen = ({
             display: "flex",
             flexDirection: "column",
             paddingY: 1,
-            paddingX: 3,
+            paddingX: 2.5,
           }}
         >
           <DialogTitle
@@ -165,6 +170,7 @@ const StartScreen = ({
               margin: "auto 0",
               color: "grey.700",
               height: "fit-content",
+              paddingX: 0,
             }}
           >
             <ArrowBackIosNew />
@@ -181,6 +187,7 @@ const StartScreen = ({
               margin: "auto 0",
               color: "grey.700",
               height: "fit-content",
+              paddingX: 0,
             }}
           >
             <ArrowForwardIos />
@@ -197,9 +204,9 @@ const StartScreen = ({
         )}
       </Dialog>
       <Dialog
-        open={!!previousRooms.length}
+        open={!!previousRooms}
         keepMounted
-        onClose={() => setPreviousRooms([])}
+        onClose={() => setPreviousRooms(undefined)}
         sx={{ ".MuiPaper-root": { backgroundColor: "grey.900" } }}
       >
         <Box
@@ -218,50 +225,60 @@ const StartScreen = ({
               justifyContent: "space-between",
               alignItems: "center",
               paddingX: 2,
+              gap: 2,
             }}
           >
             <Typography>All Previous Rooms</Typography>
-            <IconButton onClick={() => setPreviousRooms([])} sx={{ color: "white", padding: 0.25 }}>
+            <IconButton
+              onClick={() => setPreviousRooms(undefined)}
+              sx={{ color: "white", padding: 0.25 }}
+            >
               <Close sx={{ fontSize: 14 }} />
             </IconButton>
           </DialogTitle>
           <DialogContent sx={{ paddingX: 2 }}>
-            <Table sx={{ "& .MuiTableCell-root": { color: "white" } }}>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Room Id</TableCell>
-                  <TableCell>Nickname</TableCell>
-                  <TableCell>Other Players</TableCell>
-                  <TableCell>Money</TableCell>
-                  <TableCell>Rejoin?</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {previousRooms.map(({ roomId, player, room }) => (
-                  <TableRow key={`${roomId}-${player.id}`}>
-                    <TableCell>{roomId}</TableCell>
-                    <TableCell>{player.nickname}</TableCell>
-                    <TableCell>
-                      {room.players
-                        .filter(({ id }) => id !== player.id)
-                        .map(({ nickname }) => nickname)
-                        .join(", ")}
-                    </TableCell>
-                    <TableCell align="center">
-                      {(player.money ?? []).reduce((acc, { value }) => acc + value, 0)}
-                    </TableCell>
-                    <TableCell>
-                      <IconButton
-                        sx={{ color: "success.main" }}
-                        onClick={() => rejoinRoom(player.id)}
-                      >
-                        <Check />
-                      </IconButton>
-                    </TableCell>
+            {previousRooms?.length ? (
+              <Table sx={{ "& .MuiTableCell-root": { color: "white" } }}>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Room Id</TableCell>
+                    <TableCell>Nickname</TableCell>
+                    <TableCell>Other Players</TableCell>
+                    <TableCell>Money</TableCell>
+                    <TableCell>Rejoin?</TableCell>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHead>
+                <TableBody>
+                  {previousRooms.map(({ roomId, player, room }) => (
+                    <TableRow key={`${roomId}-${player.id}`}>
+                      <TableCell>{roomId}</TableCell>
+                      <TableCell>{player.nickname}</TableCell>
+                      <TableCell>
+                        {room.players
+                          .filter(({ id }) => id !== player.id)
+                          .map(({ nickname }) => nickname)
+                          .join(", ")}
+                      </TableCell>
+                      <TableCell align="center">
+                        {(player.money ?? []).reduce((acc, { value }) => acc + value, 0)}
+                      </TableCell>
+                      <TableCell>
+                        <IconButton
+                          sx={{ color: "success.main" }}
+                          onClick={() => rejoinRoom(player.id)}
+                        >
+                          <Check />
+                        </IconButton>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            ) : (
+              <Typography color="white" fontSize="14px">
+                No rooms found
+              </Typography>
+            )}
           </DialogContent>
         </Box>
       </Dialog>
@@ -305,6 +322,7 @@ const StartScreen = ({
             if (!nickname.length) setNicknameError(true);
             else singleOnCreate();
           }}
+          startIcon={<Add />}
         >
           Create Game
         </Button>
@@ -337,7 +355,11 @@ const StartScreen = ({
             </Button>
           </Box>
         ) : (
-          <Button color="secondary" onClick={() => setShowJoinInput(true)}>
+          <Button
+            color="secondary"
+            onClick={() => setShowJoinInput(true)}
+            startIcon={<ManageSearch />}
+          >
             Join Game
           </Button>
         )}
@@ -347,6 +369,7 @@ const StartScreen = ({
             const allSessions = JSON.parse(localStorage.getItem("allSessions") ?? "[]");
             isInRoom(allSessions).then(setPreviousRooms);
           }}
+          startIcon={<Replay />}
         >
           Rejoin Game
         </Button>
@@ -355,7 +378,7 @@ const StartScreen = ({
         {clientId}
       </Typography>
       <IconButton
-        sx={{ position: "absolute", bottom: 24, right: 24, color: "grey.300" }}
+        sx={{ position: "absolute", bottom: 24, right: 24, color: "grey.300", padding: 0 }}
         onClick={() => setNewVersion(allVersions[0])}
       >
         <NewReleases />
