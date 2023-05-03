@@ -253,7 +253,7 @@ const Game = ({
   }, [rentDue, hand]);
 
   useEffect(() => {
-    if (isThisPlayersTurn || rentDue) navigator.vibrate([100, 30, 100]);
+    if (isThisPlayersTurn || rentDue) navigator.vibrate?.([100, 30, 100]);
   }, [isThisPlayersTurn, rentDue]);
 
   const handleDragStart = (
