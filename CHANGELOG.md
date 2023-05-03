@@ -1,9 +1,18 @@
 # Changelog
 
+## 1.3.1 - 2023-05-02
+
+### Features
+* Vibration when it's a user's turn or they have to play rent
+
+### Coming Soon
+* Spectator Mode
+
+
 ## 1.3.0 - 2023-04-22
 
 ### Features
-* Players can now rejoin rooms they've played in
+* Players can now rejoin ongoing games they were a part of
 * Players are directed to click a board when they play a targeting card
 
 ### Bug Fixes

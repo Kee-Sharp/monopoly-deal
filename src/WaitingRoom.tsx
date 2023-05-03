@@ -4,13 +4,23 @@ import type { Player } from "./gameReducer";
 
 interface WaitingRoomProps {
   roomId: string;
-  players: Player[];
+  players?: Player[];
+  spectators?: Player[];
   onStart: () => void;
   onLeave: () => void;
   onShowConfig: () => void;
+  toggleSpectator: (id: string) => Promise<void>;
 }
 
-const WaitingRoom = ({ roomId, players, onStart, onLeave, onShowConfig }: WaitingRoomProps) => {
+const WaitingRoom = ({
+  roomId,
+  players = [],
+  spectators = [],
+  onStart,
+  onLeave,
+  onShowConfig,
+  toggleSpectator,
+}: WaitingRoomProps) => {
   const [copied, setCopied] = useState(false);
   return (
     <Box
@@ -20,7 +30,7 @@ const WaitingRoom = ({ roomId, players, onStart, onLeave, onShowConfig }: Waitin
         alignItems: "center",
         padding: 4,
         paddingBottom: 5,
-        height: "80vh",
+        height: "100svh",
       }}
     >
       <Box sx={{ display: "flex", marginBottom: 4, alignItems: "center" }}>
@@ -55,10 +65,22 @@ const WaitingRoom = ({ roomId, players, onStart, onLeave, onShowConfig }: Waitin
       <Box sx={{ flex: 1 }}>
         <Typography color="white">Friends who have joined:</Typography>
         {players.map(({ id, displayHex, nickname }) => (
-          <Typography key={id} sx={{ color: displayHex }}>
+          <Typography key={id} color={displayHex} fontSize="14px">
             {nickname}
           </Typography>
         ))}
+        {!!spectators.length && (
+          <>
+            <Typography color="white" fontSize="12px" marginTop={1}>
+              Spectators:
+            </Typography>
+            {spectators.map(({ id, displayHex, nickname }) => (
+              <Typography key={id} color={displayHex} fontSize="10px">
+                {nickname}
+              </Typography>
+            ))}
+          </>
+        )}
       </Box>
       <Button color="secondary" onClick={onShowConfig} sx={{ margin: 2 }}>
         Card Frequency

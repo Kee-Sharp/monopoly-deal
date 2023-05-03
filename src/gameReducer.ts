@@ -59,6 +59,7 @@ export interface Player {
 }
 export type GameState = {
   players: Player[];
+  spectators: Player[];
   deck: TCard[];
   discard: TCard[];
   messages: { id: "game" | String; content: string }[];
@@ -69,6 +70,7 @@ export type GameState = {
 export const init = (): GameState => {
   return {
     players: [],
+    spectators: [],
     deck: [],
     discard: [],
     messages: [{ id: "game", content: "Game created" }],
@@ -92,6 +94,7 @@ type PayloadAction<T, P = undefined> = P extends undefined ? { type: T } : { typ
 export type Payloads =
   | PayloadAction<"addPlayer", { id: string; nickname: string }>
   | PayloadAction<"removePlayer", string>
+  | PayloadAction<"toggleSpectator", string>
   | PayloadAction<"setCardConfig", number[]>
   | PayloadAction<"startGame">
   | PayloadAction<
@@ -194,6 +197,27 @@ const reducer: Reducer<GameState, Payloads> = (state, action) => {
             currentPlayerId: newPlayers[(currentPlayerIndex ?? 0) % newPlayers.length].id,
           }),
       };
+    }
+    case "toggleSpectator": {
+      const { players = [], spectators = [] } = state;
+      const targetedId = action.payload;
+      const player = players.find(({ id }) => id === targetedId);
+      if (player) {
+        return {
+          ...state,
+          players: players.filter(({ id }) => id !== targetedId),
+          spectators: [...spectators, player],
+        };
+      }
+      const spectator = spectators.find(({ id }) => id === targetedId);
+      if (spectator) {
+        return {
+          ...state,
+          spectators: spectators.filter(({ id }) => id !== targetedId),
+          players: [...players, spectator],
+        };
+      }
+      return state;
     }
     case "setCardConfig": {
       const { messages = [] } = state;

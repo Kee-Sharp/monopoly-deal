@@ -252,6 +252,10 @@ const Game = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rentDue, hand]);
 
+  useEffect(() => {
+    if (isThisPlayersTurn || rentDue) navigator.vibrate([100, 30, 100]);
+  }, [isThisPlayersTurn, rentDue]);
+
   const handleDragStart = (
     event: React.DragEvent<HTMLDivElement>,
     handIndex: number,

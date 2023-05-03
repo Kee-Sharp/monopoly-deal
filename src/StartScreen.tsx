@@ -157,6 +157,9 @@ const StartScreen = ({
             {newVersion?.parsed["Bug Fixes"] && (
               <ChangeList title="Bug Fixes" list={newVersion?.parsed["Bug Fixes"]} />
             )}
+            {newVersion?.parsed["Coming Soon"] && (
+              <ChangeList title="Coming Soon" list={newVersion?.parsed["Coming Soon"]} italic />
+            )}
           </DialogContent>
         </Box>
         {newIndex > 0 && (

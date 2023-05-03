@@ -3,12 +3,13 @@ import { Box, Typography } from "@mui/material";
 interface ChangeListProps {
   title: string;
   list: string[];
+  italic?: boolean;
 }
 
-const ChangeList = ({ title, list }: ChangeListProps) => {
+const ChangeList = ({ title, list, italic }: ChangeListProps) => {
   return (
     <Box>
-      <Typography color="white" fontSize={14}>
+      <Typography color="white" fontSize={14} {...(italic && { fontStyle: "italic" })}>
         {title}
       </Typography>
       <ul>

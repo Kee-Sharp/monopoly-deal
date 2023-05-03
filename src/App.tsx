@@ -151,7 +151,10 @@ function App() {
     sessionStorage.setItem("clientId", newClientId);
   };
 
-  const hasJoinedRoom = !!gameState.players?.find(({ id }) => id === clientId);
+  const hasJoinedRoom =
+    !!gameState.players?.find(({ id }) => id === clientId) ||
+    !!gameState.spectators?.find(({ id }) => id === clientId);
+
   if (!hasJoinedRoom && gameState.winner)
     return (
       <WinScreen
@@ -187,9 +190,11 @@ function App() {
       <WaitingRoom
         roomId={roomId}
         players={gameState.players}
+        spectators={gameState.spectators}
         onStart={() => dispatch({ type: "startGame" })}
         onLeave={() => leaveRoom()}
         onShowConfig={() => setShowConfig(true)}
+        toggleSpectator={(id: string) => dispatch({ type: "toggleSpectator", payload: id })}
       />
     );
   return (
