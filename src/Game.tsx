@@ -85,7 +85,7 @@ const Game = ({
     money: () => void;
   }>();
 
-  const [cardsReversed, setCardsReversed] = useState(false);
+  const [cardsReversed, setCardsReversed] = useState(true);
   const [scrolled, setScrolled] = useState(false);
   const cardContainerRef = useRef<HTMLDivElement>(null);
 
