@@ -5,7 +5,7 @@ const useSingleClick = <Args extends any[], ReturnType>(
   deps: React.DependencyList,
   delay: number
 ) => {
-  const timer = useRef<number>();
+  const timer = useRef<NodeJS.Timeout>();
   const wrappedCallback = useCallback(callback, deps);
   return useCallback(
     (...args: Args) => {
