@@ -1,9 +1,17 @@
 # Changelog
 
-## 1.3.1 - 2023-05-02
+## 1.4.0 - 2023-07-15
 
 ### Features
-* Vibration when it's a user's turn or they have to play rent
+* QR codes! Scanning the code at the bottom of the waiting room will now send you to the start screen with the roomId filled in
+* The create and rejoin game buttons are now disabled after typing in a room id to avoid confusion
+
+### Bug Fixes
+* Fixed issue resetting current player when someone leaves
+* Actually fixes the rent with wildcard issue previously thought fixed in v1.2.1
+
+
+## 1.3.1 - 2023-05-02
 
 ### Coming Soon
 * Spectator Mode

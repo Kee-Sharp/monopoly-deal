@@ -1,6 +1,8 @@
-import { useState } from "react";
-import { Box, Typography, Button } from "@mui/material";
+import { useState, useLayoutEffect } from "react";
+import { Box, Typography, Button, IconButton } from "@mui/material";
+import RoomPreferences from "@mui/icons-material/RoomPreferences";
 import type { Player } from "./gameReducer";
+import QRCode from "qrcode";
 
 interface WaitingRoomProps {
   roomId: string;
@@ -21,7 +23,19 @@ const WaitingRoom = ({
   onShowConfig,
   toggleSpectator,
 }: WaitingRoomProps) => {
+  const linkToRoom = `${
+    import.meta.env.DEV ? "http://127.0.0.1:5173" : "https://kee-sharp.github.io"
+  }/monopoly-deal/?roomId=${roomId}`;
   const [copied, setCopied] = useState(false);
+
+  useLayoutEffect(() => {
+    try {
+      QRCode.toCanvas(document.getElementById("qr"), linkToRoom, { margin: 1, scale: 3 });
+    } catch (e) {
+      console.error(e);
+    }
+  }, []);
+
   return (
     <Box
       sx={{
@@ -31,9 +45,39 @@ const WaitingRoom = ({
         padding: 4,
         paddingBottom: 5,
         height: "100svh",
+        position: "relative",
       }}
     >
-      <Box sx={{ display: "flex", marginBottom: 4, alignItems: "center" }}>
+      <IconButton
+        onClick={onShowConfig}
+        color="secondary"
+        sx={{ position: "absolute", top: 24, right: 8 }}
+      >
+        <RoomPreferences />
+      </IconButton>
+      <Box sx={{ flex: 1 }}>
+        <Typography color="white" marginBottom={1}>
+          Friends who have joined:
+        </Typography>
+        {players.map(({ id, displayHex, nickname }) => (
+          <Typography key={id} color={displayHex} fontSize="14px">
+            {nickname}
+          </Typography>
+        ))}
+        {!!spectators.length && (
+          <>
+            <Typography color="white" fontSize="12px" marginTop={1}>
+              Spectators:
+            </Typography>
+            {spectators.map(({ id, displayHex, nickname }) => (
+              <Typography key={id} color={displayHex} fontSize="10px">
+                {nickname}
+              </Typography>
+            ))}
+          </>
+        )}
+      </Box>
+      <Box sx={{ display: "flex", marginBottom: 3, alignItems: "center" }}>
         <Typography sx={{ color: "white" }}>code:</Typography>
         <Typography
           sx={{
@@ -62,29 +106,11 @@ const WaitingRoom = ({
           </Typography>
         </Typography>
       </Box>
-      <Box sx={{ flex: 1 }}>
-        <Typography color="white">Friends who have joined:</Typography>
-        {players.map(({ id, displayHex, nickname }) => (
-          <Typography key={id} color={displayHex} fontSize="14px">
-            {nickname}
-          </Typography>
-        ))}
-        {!!spectators.length && (
-          <>
-            <Typography color="white" fontSize="12px" marginTop={1}>
-              Spectators:
-            </Typography>
-            {spectators.map(({ id, displayHex, nickname }) => (
-              <Typography key={id} color={displayHex} fontSize="10px">
-                {nickname}
-              </Typography>
-            ))}
-          </>
-        )}
-      </Box>
-      <Button color="secondary" onClick={onShowConfig} sx={{ margin: 2 }}>
-        Card Frequency
-      </Button>
+      <canvas
+        id="qr"
+        style={{ marginBottom: 24 }}
+        onClick={() => navigator.clipboard.writeText(linkToRoom)}
+      />
       <Box
         sx={{
           display: "flex",

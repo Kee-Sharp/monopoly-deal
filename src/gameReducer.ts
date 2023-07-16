@@ -19,7 +19,7 @@ export const colors = [
   "black", "light_blue", "brown",
   "light_green",
 ] as const;
-export type SolidColor = typeof colors[number];
+export type SolidColor = (typeof colors)[number];
 export type Color = SolidColor | "rainbow";
 
 export type TCard = {
@@ -194,7 +194,10 @@ const reducer: Reducer<GameState, Payloads> = (state, action) => {
         messages: [...messages, { id: "game", content: `${nickname} has left the game` }],
         ...(gameStarted &&
           newPlayers.length && {
-            currentPlayerId: newPlayers[(currentPlayerIndex ?? 0) % newPlayers.length].id,
+            currentPlayerId:
+              state.currentPlayerId === action.payload
+                ? newPlayers[(currentPlayerIndex ?? 0) % newPlayers.length].id
+                : state.currentPlayerId,
           }),
       };
     }

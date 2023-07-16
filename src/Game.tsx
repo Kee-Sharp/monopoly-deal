@@ -226,8 +226,8 @@ const Game = ({
               0
             );
             const allSelected = [properties, money].every((arr, isMoney) =>
-              arr.every((_, index) =>
-                isMoney ? selectedOtherCards[index] : selectedProperties[index]
+              arr.every(({ value }, index) =>
+                isMoney ? selectedOtherCards[index] : selectedProperties[index] || !value
               )
             );
             const canPayRent = totalSelected >= (rentDue?.amount ?? 0) || allSelected;

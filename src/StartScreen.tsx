@@ -30,6 +30,7 @@ import React, { useEffect, useState } from "react";
 import ChangeList from "./ChangeList";
 import { GameState, Player } from "./gameReducer";
 import useSingleClick from "./useSingleClick";
+import clsx from "clsx";
 
 interface StartScreenProps {
   onCreateGame: (nickname: string) => void;
@@ -64,6 +65,8 @@ const StartScreen = ({
 
   const newIndex = allVersions.findIndex(({ version }) => version === newVersion?.version) ?? 0;
 
+  const roomIdMatch = window.location.search.match(/roomId=([A-Za-z0-9_-]{8})\b/)?.[1];
+
   const handleJoin = async () => {
     if (!nickname.length) setNicknameError(true);
     else if (!roomId.length) setJoinError(true);
@@ -91,6 +94,13 @@ const StartScreen = ({
       console.error("There was a problem with the fetch operation:", error);
     }
   };
+
+  useEffect(() => {
+    if (roomIdMatch) {
+      setShowJoinInput(true);
+      setRoomId(roomIdMatch);
+    }
+  }, [roomIdMatch]);
 
   useEffect(() => {
     fetchAndParseChangeLog().then(result => {
@@ -319,6 +329,7 @@ const StartScreen = ({
           inputProps={{ sx: { color: "grey.400" } }}
         />
         <Button
+          className={clsx({ disabled: !!roomId })}
           color="success"
           sx={{ marginBottom: 2 }}
           onClick={() => {
@@ -367,6 +378,7 @@ const StartScreen = ({
           </Button>
         )}
         <Button
+          className={clsx({ disabled: !!roomId })}
           sx={{ marginTop: 2 }}
           onClick={() => {
             const allSessions = JSON.parse(localStorage.getItem("allSessions") ?? "[]");
