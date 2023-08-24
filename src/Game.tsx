@@ -1,4 +1,13 @@
-import { Build, Chat, Info, Logout, Loop, MarkUnreadChatAlt, Menu, Settings } from "@mui/icons-material";
+import {
+  Build,
+  Chat,
+  Info,
+  Logout,
+  Loop,
+  MarkUnreadChatAlt,
+  Menu,
+  Settings,
+} from "@mui/icons-material";
 import {
   Box,
   Button,
@@ -646,7 +655,11 @@ const Game = ({
               );
             })}
           </List>
-          {isDev && <Box display='flex' justifyContent='center' typography='body1'>{clientId}</Box>}
+          {isDev && (
+            <Box display="flex" justifyContent="center" typography="body1">
+              {clientId}
+            </Box>
+          )}
         </Box>
       </SwipeableDrawer>
       <SwipeableDrawer
@@ -672,72 +685,78 @@ const Game = ({
             className="custom-scrollbar"
             sx={{ gap: 1, overflowY: "auto", overflowX: "hidden", paddingRight: 1, flex: 1 }}
           >
-            {!isDev && messages.map(({ id: messageId, content }, index) => {
-              const {
-                nickname: messagingPlayerNickname = messageId,
-                displayHex: messagingPlayerDisplayHex = "rgb(51, 51, 51)",
-              } = playersMap[messageId as string] ?? {};
-              const isContentSmall = messagingPlayerNickname.length - 1 >= content.length;
-              return (
-                <Stack
-                  key={index}
-                  sx={{
-                    maxWidth: 140,
-                    alignSelf: id === messageId ? "flex-end" : "flex-start",
-                    ...(isContentSmall && { alignItems: "center" }),
-                  }}
-                >
-                  {messageId !== "game" && (
-                    <Typography
-                      sx={{
-                        marginLeft: 0.75,
-                        marginBottom: "-2px",
-                        padding: 0.5,
-                        borderRadius: 1,
-                        borderBottomLeftRadius: 0,
-                        borderBottomRightRadius: 0,
-                        border: `2px solid ${messagingPlayerDisplayHex}`,
-                        width: "fit-content",
-                        fontSize: 6,
-                        backgroundColor: messagingPlayerDisplayHex,
-                        ...(isContentSmall && {
-                          marginLeft: 0,
-                          borderBottomLeftRadius: "4px",
-                          borderBottomRightRadius: "4px",
-                        }),
-                        ...(!isContentSmall &&
-                          id === messageId && {
-                            alignSelf: "flex-end",
-                            marginLeft: 0,
-                            marginRight: 0.75,
-                          }),
-                      }}
-                    >
-                      {messagingPlayerNickname}
-                    </Typography>
-                  )}
-                  <Typography
+            {!isDev &&
+              messages.map(({ id: messageId, content }, index) => {
+                const {
+                  nickname: messagingPlayerNickname = messageId,
+                  displayHex: messagingPlayerDisplayHex = "rgb(51, 51, 51)",
+                } = playersMap[messageId as string] ?? {};
+                const isContentSmall = messagingPlayerNickname.length - 1 >= content.length;
+                return (
+                  <Stack
+                    key={index}
                     sx={{
-                      padding: 1,
-                      borderRadius: 2,
-                      border: `2px solid ${messagingPlayerDisplayHex}`,
-                      width: "fit-content",
-                      fontSize: 8,
+                      maxWidth: 140,
+                      alignSelf: id === messageId ? "flex-end" : "flex-start",
+                      ...(isContentSmall && { alignItems: "center" }),
                     }}
                   >
-                    {content}
-                  </Typography>
-                </Stack>
-              );
-            })}
+                    {messageId !== "game" && (
+                      <Typography
+                        sx={{
+                          marginLeft: 0.75,
+                          marginBottom: "-2px",
+                          padding: 0.5,
+                          borderRadius: 1,
+                          borderBottomLeftRadius: 0,
+                          borderBottomRightRadius: 0,
+                          border: `2px solid ${messagingPlayerDisplayHex}`,
+                          width: "fit-content",
+                          fontSize: 6,
+                          backgroundColor: messagingPlayerDisplayHex,
+                          ...(isContentSmall && {
+                            marginLeft: 0,
+                            borderBottomLeftRadius: "4px",
+                            borderBottomRightRadius: "4px",
+                          }),
+                          ...(!isContentSmall &&
+                            id === messageId && {
+                              alignSelf: "flex-end",
+                              marginLeft: 0,
+                              marginRight: 0.75,
+                            }),
+                        }}
+                      >
+                        {messagingPlayerNickname}
+                      </Typography>
+                    )}
+                    <Typography
+                      sx={{
+                        padding: 1,
+                        borderRadius: 2,
+                        border: `2px solid ${messagingPlayerDisplayHex}`,
+                        width: "fit-content",
+                        fontSize: 8,
+                      }}
+                    >
+                      {content}
+                    </Typography>
+                  </Stack>
+                );
+              })}
             {isDev &&
               logs.map((log, index) => (
                 <Typography
                   key={index}
                   sx={{
                     padding: 1,
-                    borderRadius: 2, fontSize: 8,
-                  }}>{JSON.stringify(log)}</Typography>))}
+                    borderRadius: 2,
+                    fontSize: 8,
+                  }}
+                >
+                  {JSON.stringify(log)}
+                </Typography>
+              ))}
             <div ref={lastMessageRef} />
           </Stack>
           <TextField
@@ -748,7 +767,11 @@ const Game = ({
             }}
             onKeyUp={e => {
               if ((e.key === "Enter" || e.key === "Return") && chatMessage) {
-                dispatch({ type: "sendMessage", payload: { id, content: chatMessage } });
+                if (chatMessage === "dev_mode") {
+                  setIsDev(!isDev);
+                } else {
+                  dispatch({ type: "sendMessage", payload: { id, content: chatMessage } });
+                }
                 setChatMessage("");
               }
             }}
@@ -1023,9 +1046,7 @@ const Game = ({
             <Menu />
           </IconButton>
         </Box>
-        <Box className="perfect-center" sx={{ flex: 2, flexDirection: "column" }} onClick={e => {
-          if (e.detail >= 3) setIsDev(!isDev);
-        }}>
+        <Box className="perfect-center" sx={{ flex: 2, flexDirection: "column" }}>
           {choosePlayer ? (
             <Typography sx={{ fontSize: 10, color: "#16c6fe" }}>
               Tap the board of the player you want to target
