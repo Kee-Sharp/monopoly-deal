@@ -1,4 +1,4 @@
-import { Chat, Info, Logout, Loop, MarkUnreadChatAlt, Menu, Settings } from "@mui/icons-material";
+import { Build, Chat, Info, Logout, Loop, MarkUnreadChatAlt, Menu, Settings } from "@mui/icons-material";
 import {
   Box,
   Button,
@@ -69,6 +69,9 @@ const Game = ({
   const [chatMessage, setChatMessage] = useState("");
   const [lastMessageIndex, setLastMessageIndex] = useState(0);
   const [unread, setUnread] = useState(false);
+
+  const [isDev, setIsDev] = useState(false);
+  const [logs, setLogs] = useState<any[]>([]);
 
   const [chooseColorOptions, setChooseColorOptions] = useState<{
     colorOptions: ColorOptions[];
@@ -338,6 +341,7 @@ const Game = ({
     if (!isOffScreen) {
       const overElements = document.elementsFromPoint(clientX, clientY);
       const overIds = overElements.map(e => e.id);
+      setLogs(draft => [...draft, overIds]);
       setIsOverBoard(overIds.includes("myBoard") && !overIds.includes("hand"));
     }
   };
@@ -642,6 +646,7 @@ const Game = ({
               );
             })}
           </List>
+          {isDev && <Box display='flex' justifyContent='center' typography='body1'>{clientId}</Box>}
         </Box>
       </SwipeableDrawer>
       <SwipeableDrawer
@@ -667,7 +672,7 @@ const Game = ({
             className="custom-scrollbar"
             sx={{ gap: 1, overflowY: "auto", overflowX: "hidden", paddingRight: 1, flex: 1 }}
           >
-            {messages.map(({ id: messageId, content }, index) => {
+            {!isDev && messages.map(({ id: messageId, content }, index) => {
               const {
                 nickname: messagingPlayerNickname = messageId,
                 displayHex: messagingPlayerDisplayHex = "rgb(51, 51, 51)",
@@ -725,6 +730,14 @@ const Game = ({
                 </Stack>
               );
             })}
+            {isDev &&
+              logs.map((log, index) => (
+                <Typography
+                  key={index}
+                  sx={{
+                    padding: 1,
+                    borderRadius: 2, fontSize: 8,
+                  }}>{JSON.stringify(log)}</Typography>))}
             <div ref={lastMessageRef} />
           </Stack>
           <TextField
@@ -1010,7 +1023,9 @@ const Game = ({
             <Menu />
           </IconButton>
         </Box>
-        <Box className="perfect-center" sx={{ flex: 2, flexDirection: "column" }}>
+        <Box className="perfect-center" sx={{ flex: 2, flexDirection: "column" }} onClick={e => {
+          if (e.detail >= 3) setIsDev(!isDev);
+        }}>
           {choosePlayer ? (
             <Typography sx={{ fontSize: 10, color: "#16c6fe" }}>
               Tap the board of the player you want to target
@@ -1034,7 +1049,7 @@ const Game = ({
         </Box>
         <Box sx={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
           <IconButton onClick={() => setIsChatOpen(true)} color="secondary">
-            {unread ? <MarkUnreadChatAlt /> : <Chat />}
+            {isDev ? <Build /> unread ? <MarkUnreadChatAlt /> : <Chat />}
           </IconButton>
         </Box>
       </Box>
