@@ -1049,7 +1049,7 @@ const Game = ({
         </Box>
         <Box sx={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
           <IconButton onClick={() => setIsChatOpen(true)} color="secondary">
-            {isDev ? <Build /> unread ? <MarkUnreadChatAlt /> : <Chat />}
+            {isDev ? <Build /> : unread ? <MarkUnreadChatAlt /> : <Chat />}
           </IconButton>
         </Box>
       </Box>
