@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.4.1 - 2023-08-24
+
+### Bug Fixes
+* Fixed dragging cards over board not registering
+
+
 ## 1.4.0 - 2023-07-15
 
 ### Features

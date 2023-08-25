@@ -59,7 +59,7 @@ const iOS = typeof navigator !== "undefined" && /iPad|iPhone|iPod/.test(navigato
 const Game = ({
   clientId,
   gameState,
-  dispatch,
+  dispatch: preDispatch,
   onLeave,
   onShowConfig,
   images,
@@ -81,6 +81,11 @@ const Game = ({
 
   const [isDev, setIsDev] = useState(false);
   const [logs, setLogs] = useState<any[]>([]);
+
+  const dispatch: GameProps["dispatch"] = payload => {
+    setLogs(previous => previous.concat("Dispatch", payload));
+    return preDispatch(payload);
+  };
 
   const [chooseColorOptions, setChooseColorOptions] = useState<{
     colorOptions: ColorOptions[];
@@ -177,6 +182,13 @@ const Game = ({
   const closeChooseCards = () => {
     setChooseCards(undefined);
   };
+
+  useEffect(() => {
+    if (isChatOpen)
+      setLogs(previous =>
+        previous.concat("new print", { currentPlayerIndex, currentPlayerId, clientId })
+      );
+  }, [isChatOpen]);
 
   //  eslint-disable-next-line react-hooks/rules-of-hooks
   useEffect(() => {
@@ -349,8 +361,7 @@ const Game = ({
     dragPreview.style.top = `calc(${clientY}px - 20px)`;
     if (!isOffScreen) {
       const overElements = document.elementsFromPoint(clientX, clientY);
-      const overIds = overElements.map(e => e.id);
-      setLogs(draft => [...draft, overIds]);
+      const overIds = overElements.map(e => (e.parentElement?.id === "myBoard" ? "myBoard" : e.id));
       setIsOverBoard(overIds.includes("myBoard") && !overIds.includes("hand"));
     }
   };
@@ -767,7 +778,7 @@ const Game = ({
             }}
             onKeyUp={e => {
               if ((e.key === "Enter" || e.key === "Return") && chatMessage) {
-                if (chatMessage === "dev_mode") {
+                if (chatMessage.toLowerCase() === "dev mode") {
                   setIsDev(!isDev);
                 } else {
                   dispatch({ type: "sendMessage", payload: { id, content: chatMessage } });
@@ -1137,9 +1148,7 @@ const Game = ({
             }
           }}
           sx={
-            isOverBoard
-              ? { backgroundColor: isThisPlayersTurn ? "lightgreen" : "red", pointerEvents: "none" }
-              : undefined
+            isOverBoard ? { backgroundColor: isThisPlayersTurn ? "lightgreen" : "red" } : undefined
           }
         />
       </div>
