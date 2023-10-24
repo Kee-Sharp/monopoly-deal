@@ -734,7 +734,7 @@ const reducer: Reducer<GameState, Payloads> = (state, action) => {
       const currentPlayerIndex = action.payload;
       const currentPlayer = players[action.payload];
       const newPlayers = [...players];
-      newPlayers[currentPlayerIndex] = { ...currentPlayer, movesLeft: 0 };
+      newPlayers[currentPlayerIndex] = { ...currentPlayer, movesLeft: 0, rentModifier: 1 };
       const nextIndex = (currentPlayerIndex + 1) % players.length;
       const { hand = [], ...rest } = newPlayers[nextIndex];
       const numberToDraw = hand.length ? 2 : 5;
