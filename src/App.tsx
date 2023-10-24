@@ -200,6 +200,7 @@ function App() {
   return (
     <Game
       clientId={clientId}
+      roomId={roomId}
       gameState={gameState}
       dispatch={dispatch}
       onLeave={leaveRoom}

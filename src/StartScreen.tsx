@@ -378,7 +378,6 @@ const StartScreen = ({
           </Button>
         )}
         <Button
-          className={clsx({ disabled: !!roomId })}
           sx={{ marginTop: 2 }}
           onClick={() => {
             const allSessions = JSON.parse(localStorage.getItem("allSessions") ?? "[]");

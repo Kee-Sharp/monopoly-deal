@@ -29,7 +29,7 @@ import {
 } from "@mui/material";
 import clsx from "clsx";
 import _ from "lodash";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Board from "./Board";
 import Card from "./Card";
 import cards from "./cards.json";
@@ -39,9 +39,11 @@ import { colorToColor, flippableWildcards, stagesMap } from "./constants";
 import { GameState, Payloads, Player, PropertyCard, SolidColor, TCard } from "./gameReducer";
 import StagedActionDialog from "./StagedActionDialog";
 import { createPropertyMap } from "./utils";
+import QRCode from "qrcode";
 
 interface GameProps {
   clientId: string;
+  roomId: string;
   gameState: GameState;
   dispatch: (payload: Payloads) => Promise<void>;
   onLeave: () => Promise<void>;
@@ -58,6 +60,7 @@ const iOS = typeof navigator !== "undefined" && /iPad|iPhone|iPod/.test(navigato
 
 const Game = ({
   clientId,
+  roomId,
   gameState,
   dispatch: preDispatch,
   onLeave,
@@ -105,6 +108,18 @@ const Game = ({
   const [cardsReversed, setCardsReversed] = useState(true);
   const [scrolled, setScrolled] = useState(false);
   const cardContainerRef = useRef<HTMLDivElement>(null);
+
+  const linkToRoom = `${
+    import.meta.env.DEV ? "http://127.0.0.1:5173" : "https://kee-sharp.github.io"
+  }/monopoly-deal/?roomId=${roomId}`;
+
+  useLayoutEffect(() => {
+    try {
+      QRCode.toCanvas(document.getElementById("qr"), linkToRoom, { margin: 1, scale: 3 });
+    } catch (e) {
+      console.error(e);
+    }
+  }, []);
 
   useEffect(() => {
     lastMessageRef.current?.scrollIntoView();
@@ -184,11 +199,9 @@ const Game = ({
   };
 
   useEffect(() => {
-    if (isChatOpen)
-      setLogs(previous =>
-        previous.concat("new print", { currentPlayerIndex, currentPlayerId, clientId })
-      );
-  }, [isChatOpen]);
+    if (isDev)
+      setLogs(previous => previous.concat({ currentPlayerIndex, currentPlayerId, clientId }));
+  }, [isDev]);
 
   //  eslint-disable-next-line react-hooks/rules-of-hooks
   useEffect(() => {
@@ -667,8 +680,14 @@ const Game = ({
             })}
           </List>
           {isDev && (
-            <Box display="flex" justifyContent="center" typography="body1">
-              {clientId}
+            <Box display="flex" alignItems="center" typography="body1" flexDirection="column">
+              <Typography>{clientId}</Typography>
+              <Typography>{roomId}</Typography>
+              <canvas
+                id="qr"
+                style={{ marginTop: 24 }}
+                onClick={() => navigator.clipboard.writeText(linkToRoom)}
+              />
             </Box>
           )}
         </Box>
@@ -762,10 +781,12 @@ const Game = ({
                   sx={{
                     padding: 1,
                     borderRadius: 2,
+                    border: `2px solid ${"rgb(51, 51, 51)"}`,
+                    width: "fit-content",
                     fontSize: 8,
                   }}
                 >
-                  {JSON.stringify(log)}
+                  {JSON.stringify(log, undefined, 2)}
                 </Typography>
               ))}
             <div ref={lastMessageRef} />
