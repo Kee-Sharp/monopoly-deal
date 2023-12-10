@@ -37,7 +37,7 @@ interface StartScreenProps {
   onJoinGame: (nickname: string, roomId: string) => Promise<boolean>;
   clientId: string;
   isInRoom: (
-    idsToCheck: string[]
+    idsToCheck: string[],
   ) => Promise<{ roomId: string; player: Player; room: GameState }[]>;
   rejoinRoom: (newClientId: string) => void;
 }
@@ -82,7 +82,7 @@ const StartScreen = ({
       const response = await fetch(
         import.meta.env.DEV
           ? "/CHANGELOG.md"
-          : "https://raw.githubusercontent.com/kee-sharp/monopoly-deal/master/CHANGELOG.md"
+          : "https://raw.githubusercontent.com/kee-sharp/monopoly-deal/master/CHANGELOG.md",
       );
       if (!response.ok) {
         throw new Error("Network response was not ok");
@@ -254,16 +254,24 @@ const StartScreen = ({
               <Table sx={{ "& .MuiTableCell-root": { color: "white" } }}>
                 <TableHead>
                   <TableRow>
+                    <TableCell>Rejoin?</TableCell>
                     <TableCell>Room Id</TableCell>
                     <TableCell>Nickname</TableCell>
                     <TableCell>Other Players</TableCell>
                     <TableCell>Money</TableCell>
-                    <TableCell>Rejoin?</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {previousRooms.map(({ roomId, player, room }) => (
                     <TableRow key={`${roomId}-${player.id}`}>
+                      <TableCell>
+                        <IconButton
+                          sx={{ color: "success.main" }}
+                          onClick={() => rejoinRoom(player.id)}
+                        >
+                          <Check />
+                        </IconButton>
+                      </TableCell>
                       <TableCell>{roomId}</TableCell>
                       <TableCell>{player.nickname}</TableCell>
                       <TableCell>
@@ -274,14 +282,6 @@ const StartScreen = ({
                       </TableCell>
                       <TableCell align="center">
                         {(player.money ?? []).reduce((acc, { value }) => acc + value, 0)}
-                      </TableCell>
-                      <TableCell>
-                        <IconButton
-                          sx={{ color: "success.main" }}
-                          onClick={() => rejoinRoom(player.id)}
-                        >
-                          <Check />
-                        </IconButton>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -405,7 +405,7 @@ const Transition = React.forwardRef(function Transition(
   props: TransitionProps & {
     children: React.ReactElement<any, any>;
   },
-  ref: React.Ref<unknown>
+  ref: React.Ref<unknown>,
 ) {
   return <Slide direction="up" ref={ref} {...props} />;
 });
